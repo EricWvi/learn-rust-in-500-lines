@@ -11,7 +11,7 @@
 
 <p align="center">
 <a href="./README.md">English</a> •
-<a href="https://ericwvi.github.io/learn-rust-in-500-lines/">开始阅读</a>
+<a href="https://ericwvi.github.io/learn-rust-in-500-lines/cn/">开始阅读</a>
 </p>
 
 ## 这个系列想走第三条路
