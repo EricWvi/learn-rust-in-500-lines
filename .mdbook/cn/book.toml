@@ -1,0 +1,8 @@
+[book]
+title = "500 行代码学会 Rust"
+authors = []
+language = "zh-CN"
+
+[build]
+build-dir = "../../book/cn"
+create-missing = true

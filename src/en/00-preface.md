@@ -1,19 +1,4 @@
-# Learn Rust in 500 lines
-
-<p align="center">
-<img src="assets/ferris.svg" alt="Ferris the Rust crab" width="220">
-</p>
-
-<p align="center">
-<strong>Learn Rust by reading one real, ~500-line project — line by line.</strong><br/>
-<sub>No scattered toy snippets, no 50,000-line repo. Just the <code>process</code> crate, read from its first line to its last — every hard concept met at the moment it becomes necessary.</sub>
-</p>
-
-<p align="center">
-<a href="./README_CN.md">简体中文</a> •
-<a href="./src/en/00-preface.md">Preface</a> •
-<a href="./src/en/01-crate-module-cargo.md">Start reading</a>
-</p>
+# Post 00: Before We Begin — Why "500 Lines"
 
 ## This series takes a third path
 
@@ -63,3 +48,5 @@ You will notice that each article adds only one more layer on top of the previou
 - **Read in order.** Concepts are layered one on top of the next; skimming ahead makes it easy to lose your footing by the third layer.
 - **Each term is defined only once.** The first time a term appears, I explain it thoroughly with an everyday analogy and record it in the glossary, `terminology.md`. From then on I use it freely instead of redefining it. So if a term slips your mind, look it up in that table.
 - **The code is the main character.** Every article starts from a real piece of code and returns, at the end, to understanding that code. As you read, keep asking yourself: "what problem is this line here to solve?"
+
+When you are ready, let us begin with Post 01: understanding the skeleton of a Rust project.

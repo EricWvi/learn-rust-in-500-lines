@@ -1,0 +1,8 @@
+[book]
+title = "Learn Rust in 500 Lines"
+authors = []
+language = "en"
+
+[build]
+build-dir = "../../book/en"
+create-missing = true

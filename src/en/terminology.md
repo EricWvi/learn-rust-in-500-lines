@@ -1,8 +1,6 @@
 # Terminology
 
-Terms introduced in each blog post, paired with the post number that first
-introduces them. Read this table before writing a new article so you do not
-re-define a term that was already introduced. Keep term names in code form.
+Terms introduced in each blog post, paired with the post number that first introduces them. 
 
 | Term | Meaning (short) | First introduced |
 | --- | --- | --- |
