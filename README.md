@@ -11,8 +11,7 @@
 
 <p align="center">
 <a href="./README_CN.md">简体中文</a> •
-<a href="./src/en/00-preface.md">Preface</a> •
-<a href="./src/en/01-crate-module-cargo.md">Start reading</a>
+<a href="https://ericwvi.github.io/learn-rust-in-500-lines/">Start reading</a>
 </p>
 
 ## This series takes a third path
