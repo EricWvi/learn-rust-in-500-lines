@@ -1,0 +1,401 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>500 行代码学会 Rust</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-17c1aad8.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-32c0ab25.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">500 行代码学会 Rust</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-00-篇写在开始之前为什么是500-行"><a class="header" href="#第-00-篇写在开始之前为什么是500-行">第 00 篇：写在开始之前——为什么是「500 行」</a></h1>
+<h2 id="这个系列想走第三条路"><a class="header" href="#这个系列想走第三条路">这个系列想走第三条路</a></h2>
+<p>你大概见过两种 Rust 教程。一种是一上来就 <code>fn main()</code> 配 <code>println!</code>，用零碎的小例子讲语法，例子之间毫无联系——读完你记得一堆碎片，却不知道怎么把它们拼成一个真正的项目。另一种是直接甩给你一份几万行的开源仓库，说“读源码吧“——可你连入口都找不到。</p>
+<p>这个系列想走第三条路：<strong>我们只读一个项目，一个真实、完整、但只有大约 500 行的项目</strong>，从它的第一行读到最后一行。Rust 里那些最让人头疼的概念——所有权、生命周期、<code>trait</code>、异步、通道——不是凭空蹦出来吓你的，它们每一个都是这 500 行里<strong>为了解决某个具体问题</strong>才出现的。我们就在那个问题发生的现场，把它们一个一个认出来。</p>
+<h2 id="500-行是怎么来的"><a class="header" href="#500-行是怎么来的">「500 行」是怎么来的</a></h2>
+<p>先说这个数字怎么来的。整个系列围绕的，是 <code>code/</code> 目录下一个叫 <code>process</code> 的小 crate——它的作用是“帮你启动并管理子进程“。不算测试，它的核心源码一共 <strong>512 行</strong>：</p>
+<ul>
+<li><code>src/lib.rs</code> —— 7 行，整个 crate 的正门；</li>
+<li><code>src/spec.rs</code> —— 153 行，描述“要启动一个什么样的子进程“；</li>
+<li><code>src/traits.rs</code> —— 53 行，定义对外的接口约定；</li>
+<li><code>src/tokio_process.rs</code> —— 299 行，真正干活的实现。</li>
+</ul>
+<p>512，约等于 500，这就是系列名字的由来。</p>
+<p>为什么偏偏挑这个体量？因为它卡在一个甜点上：</p>
+<ul>
+<li><strong>小到能装进脑子。</strong> 500 行你可以从头到尾通读，记得住每个文件负责什么，不会被规模淹没。</li>
+<li><strong>大到足够真实。</strong> 它不是那种只为教学拼凑的玩具——它有清晰的分层（描述 / 接口 / 实现），有真正棘手的并发问题（要同时等子进程退出、等“杀死“命令、等“销毁“信号），也有为了正确性而做的妥协和注释。换句话说，<strong>它逼着你碰 Rust 的硬骨头</strong>。</li>
+</ul>
+<p>一句话：500 行足够小，小到学得完；又足够真，真到学完能用。</p>
+<h2 id="你甚至可以不打开-ide"><a class="header" href="#你甚至可以不打开-ide">你甚至可以不打开 IDE</a></h2>
+<p>很多教程的潜台词是“先把仓库 clone 下来，用 IDE 打开，跟着源码看“。这个系列不要求你这么做。</p>
+<p>每一篇文章里，<strong>相关的代码会原样贴在正文当中，并逐行解释</strong>。你完全可以躺在沙发上用手机读、用平板读、打印成纸读，从头到尾不碰电脑、不装工具、不 clone 任何东西，也能跟上每一行在发生什么。</p>
+<p>当然，如果你想动手——这些代码是真的，能编译、能跑。仓库里的 <code>code/</code> 就是那个 crate 本体，<code>cargo test</code> 一敲，测试全绿。读到一个地方手痒了，随时可以打开 IDE 改两行，看看会发生什么。但这是<strong>加分项</strong>，不是<strong>入场券</strong>。</p>
+<h2 id="由浅入深这条路怎么走"><a class="header" href="#由浅入深这条路怎么走">由浅入深：这条路怎么走</a></h2>
+<p>这个系列的顺序，是刻意按“从外到内、从易到难“排的。大致路线是这样：</p>
+<ol>
+<li><strong>先认骨架</strong>：一个 Rust 项目长什么样？什么是 <code>crate</code>、<code>lib.rs</code>、<code>mod</code>、<code>Cargo.toml</code>？我们先把地图摊开。</li>
+<li><strong>再读数据</strong>：<code>ProcessSpec</code> 那份“清单“是怎么搭起来的？由此认识 <code>struct</code>、字段、方法，以及 Rust 最特别的<strong>所有权（ownership）</strong>。</li>
+<li><strong>再读约定</strong>：<code>ProcessSpawner</code> 和 <code>ManagedProcess</code> 这两个接口是怎么定义的？由此认识 <code>trait</code>——Rust 里表达“共同能力“的方式。</li>
+<li><strong>最后读实现</strong>：<code>tokio_process.rs</code> 那 299 行里，怎么用异步和通道，把一个子进程的整个生命周期管起来？这是最难的一段，但走到这里时，你已经攒够了所有前置概念。</li>
+</ol>
+<p>你会发现，每一篇都只在前一篇的地基上加一层。<strong>没有一篇会用到它还没讲过的东西。</strong> 这是这个系列给你的承诺：只要你按顺序读，就不会在某一天突然撞上一堵没解释过的墙。</p>
+<h2 id="怎么读最有效"><a class="header" href="#怎么读最有效">怎么读最有效</a></h2>
+<ul>
+<li><strong>按顺序读。</strong> 概念是一层层铺垫的，跳读容易在第三层踩空。</li>
+<li><strong>术语只定义一次。</strong> 一个词第一次出现时，我会用日常类比把它讲透，并记进仓库里的术语表 <code>terminology.md</code>；之后再遇到它，我不会重复定义，而是直接用。所以如果某个词记不清了，去翻那张表。</li>
+<li><strong>代码是主角。</strong> 每篇文章都从一段真实代码出发，最后回到对这段代码的理解。读的时候，多问自己一句“这一行是为了解决什么问题，才写在这里的“。</li>
+</ul>
+<p>准备好了，我们就从第 01 篇开始：看懂一个 Rust 项目的骨架。</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="第-01-篇看懂一个-rust-项目的骨架crate模块与-cargotoml"><a class="header" href="#第-01-篇看懂一个-rust-项目的骨架crate模块与-cargotoml">第 01 篇：看懂一个 Rust 项目的骨架（crate、模块与 Cargo.toml）</a></h1>
+<h2 id="一先认识这个-crate-的门面"><a class="header" href="#一先认识这个-crate-的门面">一、先认识这个 crate 的“门面“</a></h2>
+<p>我们不急着讲概念。先把这个叫 <code>process</code> 的东西能做什么，用一堆名字串起来看一看——你暂时不用理解这些名字背后是什么，先在脑子里有个整体的画面就好。</p>
+<p>你想启动一个子进程，第一步是准备一份“清单“，它的名字叫 <code>ProcessSpec</code>。这份清单上能填的东西不少：</p>
+<ul>
+<li><code>arg</code> 和 <code>args</code>：往命令行里加参数；</li>
+<li><code>cwd</code>：设定子进程的工作目录；</li>
+<li><code>env</code>：设定环境变量；</li>
+<li><code>stdin</code>、<code>stdout</code>、<code>stderr</code>：设定三条标准输入输出流的策略，每条都可以选 <code>Piped</code>、<code>Inherit</code>、<code>Null</code> 三种之一（这三样打包在一个叫 <code>ProcessStdio</code> 的名字下）；</li>
+<li><code>kill_on_drop</code> 和 <code>keep_alive_on_drop</code>：决定这份清单“丢掉“的时候，子进程该被杀掉还是继续活着。</li>
+</ul>
+<p>清单写好了，交给一个叫 <code>ProcessSpawner</code> 的“启动器“，喊一声它的 <code>spawn</code>，你会拿回一个 <code>ManagedProcess</code>。这个 <code>ManagedProcess</code> 就是子进程的“把手“，它能让你：</p>
+<ul>
+<li>用 <code>id</code> 看进程号；</li>
+<li>用 <code>take_stdin</code>、<code>take_stdout</code>、<code>take_stderr</code> 把三条管道取出来自己用；</li>
+<li>用 <code>try_wait</code> 偷瞄一眼它退没退出；</li>
+<li>用 <code>wait</code> 一直等到它结束；</li>
+<li>用 <code>kill</code> 强行把它终止。</li>
+</ul>
+<p>最后，这套清单和把手还分别有一个“现成的具体实现“：<code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code>——名字里的 <code>Tokio</code> 暗示了它们背后靠的是 <code>tokio</code> 这个东西，但那不是今天的重点。</p>
+<p>把上面这一串名字过一遍就够了。这一整套——<code>ProcessSpec</code>、<code>ProcessStdio</code>、<code>ProcessSpawner</code>、<code>ManagedProcess</code>，加上 <code>TokioProcessSpawner</code>、<code>TokioManagedProcess</code>——就是 <code>process</code> 摆在外面的全部“门面“。那么问题来了：这么一堆名字，到底被装在哪里？我们走进去看一眼。</p>
+<h2 id="二crate装着这一切的木箱"><a class="header" href="#二crate装着这一切的木箱">二、crate：装着这一切的“木箱“</a></h2>
+<p>上面那一堆名字，连同它们背后的实现，统统被装在一个叫 <strong>crate</strong>（木箱、板条箱）的东西里。它是 Rust 里最大的组织单位。</p>
+<p>打个比方：crate 就像一只<strong>打包好的木箱</strong>。你把一堆零件（代码）装进木箱，封好，贴上标签（名字、版本号），然后整箱运出去。别人要用你的成果，不是来你这儿零拿一个零件，而是<strong>整箱引用</strong>。一只木箱最后只会被编译成<strong>一个</strong>成品——要么是一份别人能引用的“工具库“，要么是一个能直接跑起来的“可执行程序“。</p>
+<p>这就引出两种 crate：</p>
+<ul>
+<li><strong>库 crate（library crate）</strong>：像一本<strong>工具书</strong>或一个<strong>零件柜</strong>。它本身不会自己跑起来，它的存在是为了被别的程序“翻阅、取用“。Rust 规定这种 crate 的“正门“文件叫 <strong><code>lib.rs</code></strong>——所有来找它的人，都从这个门进。</li>
+<li><strong>二进制 crate（binary crate）</strong>：像一台<strong>能按下开机键的机器</strong>。它自己就能跑，跑起来的入口文件叫 <strong><code>main.rs</code></strong>。</li>
+</ul>
+<p>那么我们这个 <code>process</code> 是哪一种？打开它的目录看一眼，会看到 <code>src/lib.rs</code>，而<strong>没有</strong> <code>main.rs</code>。答案就清楚了：<code>process</code> 是一个<strong>库 crate</strong>。它不打算自己运行，它的使命是被别的程序拿去用——比如某个上层程序需要管一堆子进程时，就引用 <code>process</code>，调用我们刚才看到的那一串名字。</p>
+<blockquote>
+<p>等一下，这里有个细节：你可能在别的 Rust 项目里见过又写 <code>lib.rs</code> 又写 <code>main.rs</code> 的情况。那通常是一个项目既提供库、又附带一个用来演示或直接运行的小程序。但最小、最干净的情况是二选一——像 <code>process</code> 这样只做库。</p>
+</blockquote>
+<p>一个值得记住的对比：写过 Go 的人，可以把 crate 大致想成“一个 module 里的一个 package“；写过 JS/Node 的人，可以把它想成“一个 package（对应一个 <code>package.json</code>）“。不完全一样，但这个画面对你建立直觉有帮助。</p>
+<h2 id="三mod-与-use把木箱内部分成抽屉"><a class="header" href="#三mod-与-use把木箱内部分成抽屉">三、mod 与 use：把木箱内部分成抽屉</a></h2>
+<p>crate 是木箱，但木箱不能把所有零件一股脑倒进去——太乱了。你需要<strong>抽屉</strong>把相关的零件归到一起。在 Rust 里，这个“抽屉“叫 <strong>模块（module）</strong>，写出来的关键字是 <code>mod</code>。</p>
+<p>再看一个画面：模块就像<strong>一栋大楼里的房间</strong>，或者<strong>文件柜里的一个个抽屉</strong>。每个抽屉装一类东西（<code>spec.rs</code> 装清单、<code>traits.rs</code> 装接口约定、<code>tokio_process.rs</code> 装具体实现），每个抽屉都有自己的<strong>标签</strong>（名字）。于是不同抽屉里哪怕有重名的东西也不会打架——因为它们的全名是“抽屉名 + 东西名“。</p>
+<p>名字那么长，每次都要写全名太累。这就轮到 <strong><code>use</code></strong> 上场了。<code>use</code> 的作用，就像手机通讯录里<strong>把一个长号码存成一个短昵称</strong>：存好之后，你直接喊昵称就能拨号，不用每次都输入那一长串。</p>
+<p>光说抽象的没用，我们直接看这个 crate 的“正门“ <code>src/lib.rs</code> 里<strong>真实</strong>写了什么：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>mod spec;
+mod tokio_process;
+mod traits;
+
+pub use spec::{ProcessSpec, ProcessStdio};
+pub use tokio_process::{TokioManagedProcess, TokioProcessSpawner};
+pub use traits::{ManagedProcess, ProcessSpawner};
+<span class="boring">}</span></code></pre>
+<p>逐段读一遍：</p>
+<ul>
+<li><code>mod spec;</code>——这一句在说：“我这里有个抽屉叫 <code>spec</code>。” Rust 会自动去找 <code>spec.rs</code> 这个文件，把它当成 <code>spec</code> 抽屉的内容。所以你<strong>不需要</strong>在别的地方再“注册“一次 <code>spec.rs</code>——<code>mod spec;</code> 这一句就是注册。下面两行同理，分别对应 <code>tokio_process.rs</code> 和 <code>traits.rs</code>。</li>
+<li><code>pub use spec::{ProcessSpec, ProcessStdio};</code>——“把 <code>spec</code> 抽屉里的 <code>ProcessSpec</code> 和 <code>ProcessStdio</code> 这两样，摆到正门门口，并且允许外面的人看到。” 其中 <code>use</code> 负责“取出来摆好“，<code>pub</code> 负责“允许别人看“。少了 <code>pub</code>，东西摆了但门没开，外面的人照样摸不着。</li>
+</ul>
+<p>💡 回头看第一节那张“门面“清单——<code>ProcessSpec</code>、<code>ProcessStdio</code>、<code>ProcessSpawner</code>、<code>ManagedProcess</code>、<code>TokioProcessSpawner</code>、<code>TokioManagedProcess</code>，正好就是这里通过 <code>pub use</code> 摆到门口的六个名字。一节对一节，严丝合缝。这六个名字之外的任何东西（比如 <code>tokio_process.rs</code> 里那个 <code>run_process_lifecycle</code>），都还闷在抽屉里，外面看不见、也碰不到——这正是模块化想要的效果。</p>
+<h2 id="四cargotoml这只木箱的装箱单"><a class="header" href="#四cargotoml这只木箱的装箱单">四、Cargo.toml：这只木箱的“装箱单“</a></h2>
+<p>木箱做好了，外面还要贴一张标签，写清楚：这箱东西叫什么名字、第几版、需要哪些别的木箱配合。这张标签就是 <strong><code>Cargo.toml</code></strong> 文件。</p>
+<p>而<strong>发放、管理、搬运这些木箱的工具</strong>叫 <strong>Cargo</strong>——它同时是你的<strong>编译器调度员</strong>和<strong>包管理器</strong>：你只要在 <code>Cargo.toml</code> 里声明“我需要 <code>tokio</code> 这只箱子“，Cargo 就会自动帮你下载、编译、拼好。写过 Node 的人，可以把 Cargo 理解成 <code>npm</code> + 构建工具的合体，<code>Cargo.toml</code> 就是它对应的 <code>package.json</code>。</p>
+<p>我们来看这个 crate 真实的 <code>Cargo.toml</code>：</p>
+<pre><code class="language-toml">[package]
+name = "process"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "process"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync"] }
+
+[dev-dependencies]
+pretty_assertions = { version = "1" }
+tempfile = { version = "3" }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread", "time"] }
+</code></pre>
+<p>一段段拆开：</p>
+<ul>
+<li><strong><code>[package]</code></strong>：这只木箱的“身份证“。<code>name = "process"</code> 是它的名字，别人引用它时就用这个名字；<code>version = "0.1.0"</code> 是版本号；<code>edition = "2024"</code> 是它使用的 <strong>Rust edition</strong>——可以理解成“Rust 语言的一个版本档“。每隔几年 Rust 会整理一批新习惯、新规则，打包成一个 edition，<code>2024</code> 是写作本文时最新的一档。注意 edition <strong>不等于</strong>编译器版本，它更像是一套“默认开关“：同一个编译器，只要你声明不同的 edition，就会启用不同的语言规则。</li>
+<li><strong><code>[lib]</code></strong>：明确告诉 Cargo“这是一只库 crate，它的正门在 <code>src/lib.rs</code>“。其实就算不写这段，Cargo 默认也会去找 <code>src/lib.rs</code>，这里写出来是为了清楚。如果你做的是二进制 crate，对应的入口会是 <code>src/main.rs</code>，那段通常写成 <code>[bin]</code>，或者干脆省略（默认找 <code>src/main.rs</code>）。</li>
+<li><strong><code>[dependencies]</code></strong>：这只木箱<strong>正常运行</strong>所依赖的别的箱子。这里只列了一个 <code>tokio</code>，<code>features</code> 里那一串是“我只打开 tokio 的这几个功能模块“——tokio 体量很大，按需勾选能省下不少编译时间和体积。</li>
+<li><strong><code>[dev-dependencies]</code></strong>：只在<strong>写测试、写示例</strong>时才需要的箱子，不会算进正式发布给别人的依赖里。注意 <code>tokio</code> 在这里又出现了一次，<code>features</code> 多了 <code>rt-multi-thread</code> 和 <code>time</code>——因为测试需要多线程运行时和计时功能，而正式库里用不到。</li>
+</ul>
+<blockquote>
+<p>顺带一提：目录里还有个 <code>Cargo.lock</code>，它<strong>不是</strong>你手写的，而是 Cargo 自动生成的“依赖版本钉死单“，记录每个依赖最终用的精确版本。库 crate 通常会把它放进 <code>.gitignore</code>，交给使用方去锁定；二进制 crate 则一般要提交它，以保证每个人编出来的版本一致。</p>
+</blockquote>
+<h2 id="五新手最容易踩的两个坑"><a class="header" href="#五新手最容易踩的两个坑">五、新手最容易踩的两个坑</a></h2>
+<ol>
+<li>
+<p><strong>“为什么外面找不到我写的东西？”——多半是忘了 <code>pub</code>。</strong>
+Rust 的默认脾气是“关着门“：一个抽屉里的东西，不主动 <code>pub</code>，外面就看不见。你明明在 <code>spec.rs</code> 里写了 <code>ProcessSpec</code>，但只要 <code>lib.rs</code> 里没有 <code>pub use</code> 把它请到门口，别人引用 <code>process::ProcessSpec</code> 时就会被告知“没这东西“。记住这条规则：<strong>写在文件里 ≠ 对外可见</strong>。</p>
+</li>
+<li>
+<p><strong>“我在哪儿注册了 <code>spec.rs</code>？”——就是 <code>mod spec;</code> 那一句。</strong>
+从 Python / JS 过来的人常常会去找一个“导入文件“的动作，结果发现 Rust 里好像“没导入就用了“。其实 <code>src/lib.rs</code> 里的 <code>mod spec;</code> 就是导入加注册二合一的那一句；而且 Rust 会按文件名去找对应文件（<code>spec</code> → <code>spec.rs</code>）。另外提一句：Rust 还有一种更老的模块文件写法是 <code>spec/mod.rs</code>，现在推荐的是 <code>spec.rs</code> 这种——你在这个项目里看到的就是新风格。</p>
+</li>
+</ol>
+<h2 id="六小结"><a class="header" href="#六小结">六、小结</a></h2>
+<ul>
+<li>一个 <strong>crate</strong> 是 Rust 里最大的组织单位，像一只封好的<strong>木箱</strong>，最终编译成一个成品：要么是库（正门 <code>lib.rs</code>），要么是可执行程序（入口 <code>main.rs</code>）。<code>process</code> 是一只<strong>库 crate</strong>。</li>
+<li><strong><code>mod</code></strong> 把木箱内部分成一个个“抽屉“（模块），文件名即模块名；<strong><code>use</code></strong> 把某个抽屉里的名字取出来用，<code>pub</code> 决定它能不能被外面看到。</li>
+<li><code>src/lib.rs</code> 里那几行 <code>mod ...;</code> + <code>pub use ...;</code>，正好把第一节看到的六个“门面“名字摆到了正门口。</li>
+<li><strong><code>Cargo.toml</code></strong> 是木箱的装箱单：<code>[package]</code> 是身份证（名字、版本、edition），<code>[lib]</code> 指明正门，<code>[dependencies]</code> 是正式依赖，<code>[dev-dependencies]</code> 是只在测试时才需要的依赖。</li>
+<li><strong>Cargo</strong> 是搬运、下载、编译这些木箱的工具；<code>Cargo.lock</code> 是它自动生成的版本钉死单，不需要你手写。</li>
+</ul>
+<p>下一篇，我们会真正走进 <code>spec.rs</code>，看看 <code>ProcessSpec</code> 这份“清单“是怎么一点点搭起来的——届时会碰到 Rust 里几个非常关键、也非常反直觉的概念。第一次读可能会皱眉，没关系，我们到时候一步步拆。</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="术语表"><a class="header" href="#术语表">术语表</a></h1>
+<p>每篇文章首次引入的术语及对应篇号。</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>含义（简述）</th><th>首次出现</th></tr>
+</thead>
+<tbody>
+<tr><td><code>crate</code></td><td>Rust 中最大的组织单位，编译为一个成品（库或可执行程序）。</td><td>01</td></tr>
+<tr><td>library crate（库 crate）</td><td>供其他代码使用的 crate，根文件为 <code>lib.rs</code>。</td><td>01</td></tr>
+<tr><td>binary crate（二进制 crate）</td><td>可独立运行的 crate，入口文件为 <code>main.rs</code>。</td><td>01</td></tr>
+<tr><td><code>lib.rs</code></td><td>库 crate 的“正门“。</td><td>01</td></tr>
+<tr><td><code>main.rs</code></td><td>二进制 crate 的入口文件。</td><td>01</td></tr>
+<tr><td>module（<code>mod</code>，模块）</td><td>crate 内部的一组命名代码；文件名对应模块名（如 <code>spec</code> → <code>spec.rs</code>）。</td><td>01</td></tr>
+<tr><td><code>use</code></td><td>将某个名称引入当前作用域，以便用短名引用。</td><td>01</td></tr>
+<tr><td>re-export（<code>pub use</code>，重导出）</td><td>使用 <code>use</code> 加 <code>pub</code> 把嵌套模块中的名称暴露到更上层路径。</td><td>01</td></tr>
+<tr><td>visibility（<code>pub</code>，可见性）</td><td>控制一个项能否在模块之外被看到，默认为私有。</td><td>01</td></tr>
+<tr><td><code>Cargo</code></td><td>Rust 的构建工具和包管理器。</td><td>01</td></tr>
+<tr><td><code>Cargo.toml</code></td><td>crate 的清单文件：名称、版本、edition、依赖。</td><td>01</td></tr>
+<tr><td>edition</td><td>Rust 语言的一组默认设置（如 <code>2024</code>），与编译器版本不同。</td><td>01</td></tr>
+<tr><td>dependency（<code>[dependencies]</code>，依赖）</td><td>crate 构建和运行所需的其他 crate。</td><td>01</td></tr>
+<tr><td><code>[dev-dependencies]</code></td><td>仅在测试、示例和基准测试中使用的依赖。</td><td>01</td></tr>
+<tr><td><code>Cargo.lock</code></td><td>Cargo 自动生成的文件，用于钉死依赖的精确版本。</td><td>01</td></tr>
+</tbody>
+</table>
+</div>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>
