@@ -1,0 +1,16 @@
+[package]
+name = "process"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "process"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync"] }
+
+[dev-dependencies]
+pretty_assertions = { version = "1" }
+tempfile = { version = "3" }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread", "time"] }
