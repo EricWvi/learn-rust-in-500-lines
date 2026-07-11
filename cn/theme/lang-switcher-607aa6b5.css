@@ -1,0 +1,46 @@
+/*
+ * Language switcher popup.
+ * Mirrors mdBook's built-in .theme-popup look (same theme variables) but is
+ * anchored to the right edge, since the globe button lives in .right-buttons.
+ */
+.lang-popup {
+    position: absolute;
+    right: 15px;
+    top: var(--menu-bar-height);
+    z-index: 1000;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--fg);
+    background: var(--theme-popup-bg);
+    border: 1px solid var(--theme-popup-border);
+    display: none;
+    /* Keep children inside the rounded corners. */
+    overflow: hidden;
+}
+.lang-popup .lang-option {
+    display: block;
+    width: 100%;
+    border: 0;
+    margin: 0;
+    padding: 2px 20px;
+    line-height: 25px;
+    white-space: nowrap;
+    text-align: start;
+    cursor: pointer;
+    color: inherit;
+    background: inherit;
+    font: inherit;
+}
+.lang-popup .lang-option:hover {
+    background-color: var(--theme-hover);
+}
+/* Checkmark on the currently active language. */
+.lang-popup .lang-selected::before {
+    display: inline-block;
+    content: "\2713";
+    margin-inline-start: -14px;
+    width: 14px;
+}

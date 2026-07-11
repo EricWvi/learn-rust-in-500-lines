@@ -3,10 +3,12 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Preface - Learn Rust in 500 Lines</title>
+        <title>Learn Rust in 500 Lines</title>
+        <meta name="robots" content="noindex">
 
 
         <!-- Custom HTML head -->
+        <template id="lang-icon"><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></svg></span></template>
 
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -28,6 +30,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/lang-switcher-607aa6b5.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -38,7 +41,7 @@
             window.path_to_searchindex_js = "searchindex-336aa859.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-da6eda72.js"></script>
+        <script src="toc-de26c149.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -143,6 +146,9 @@
                         <a href="print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
+                        <a href="https://github.com/EricWvi/learn-rust-in-500-lines" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
 
                     </div>
                 </div>
@@ -213,15 +219,146 @@
 <li><strong>The code is the main character.</strong> Every article starts from a real piece of code and returns, at the end, to understanding that code. As you read, keep asking yourself: “what problem is this line here to solve?”</li>
 </ul>
 <p>When you are ready, let us begin with Post 01: understanding the skeleton of a Rust project.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="post-01-reading-the-skeleton-of-a-rust-project-crates-modules-and-cargotoml"><a class="header" href="#post-01-reading-the-skeleton-of-a-rust-project-crates-modules-and-cargotoml">Post 01: Reading the Skeleton of a Rust Project (crates, modules, and Cargo.toml)</a></h1>
+<h2 id="first-meet-this-crates-storefront"><a class="header" href="#first-meet-this-crates-storefront">First, meet this crate’s “storefront”</a></h2>
+<p>We are not rushing into concepts. First, let us string together — by name — what this thing called <code>process</code> can do. You do not need to understand what lies behind these names yet; just get the overall picture in your head.</p>
+<p>To spawn a child process, the first step is to prepare a “spec list.” Its name is <code>ProcessSpec</code>. This list lets you fill in quite a few things:</p>
+<ul>
+<li><code>arg</code> and <code>args</code>: add arguments to the command line;</li>
+<li><code>cwd</code>: set the child process’s working directory;</li>
+<li><code>env</code>: set environment variables;</li>
+<li><code>stdin</code>, <code>stdout</code>, <code>stderr</code>: set the policy for the three standard I/O streams, each of which can be <code>Piped</code>, <code>Inherit</code>, or <code>Null</code> (these three are bundled together under the name <code>ProcessStdio</code>);</li>
+<li><code>kill_on_drop</code> and <code>keep_alive_on_drop</code>: decide whether the child process should be killed or kept alive when this list is “dropped.”</li>
+</ul>
+<p>Once the list is ready, you hand it to a “spawner” called <code>ProcessSpawner</code>, call its <code>spawn</code>, and you get back a <code>ManagedProcess</code>. This <code>ManagedProcess</code> is the “handle” to the child process. It lets you:</p>
+<ul>
+<li>check the process id with <code>id</code>;</li>
+<li>pull the three pipes out for your own use with <code>take_stdin</code>, <code>take_stdout</code>, <code>take_stderr</code>;</li>
+<li>take a quick peek at whether it has exited with <code>try_wait</code>;</li>
+<li>wait until it finishes with <code>wait</code>;</li>
+<li>force it to terminate with <code>kill</code>.</li>
+</ul>
+<p>Finally, both the spec list and the handle each have a “ready-made concrete implementation”: <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code>. The <code>Tokio</code> in the name hints that they rely on <code>tokio</code> under the hood, but that is not today’s focus.</p>
+<p>That is enough — run through this string of names once. This whole set — <code>ProcessSpec</code>, <code>ProcessStdio</code>, <code>ProcessSpawner</code>, <code>ManagedProcess</code>, plus <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> — is the entire “storefront” that <code>process</code> puts on display. So the question is: where exactly is this pile of names stored? Let us step inside and take a look.</p>
+<h2 id="crate-the-wooden-crate-that-holds-all-of-this"><a class="header" href="#crate-the-wooden-crate-that-holds-all-of-this">crate: the “wooden crate” that holds all of this</a></h2>
+<p>That pile of names, along with the implementations behind them, is all packed inside something called a <strong>crate</strong> (a wooden shipping crate). It is the largest unit of organization in Rust.</p>
+<p>An analogy: a crate is like a <strong>packed wooden crate</strong>. You put a bunch of parts (code) into the crate, seal it, slap on a label (name, version number), and ship the whole thing out. When someone else wants to use your work, they do not come to you to pick up a single part — they <strong>reference the entire crate</strong>. One crate ultimately compiles into <strong>one</strong> finished product: either a “library” that others can reference, or an “executable program” that can run directly.</p>
+<p>This gives rise to two kinds of crates:</p>
+<ul>
+<li><strong>Library crate</strong>: like a <strong>reference book</strong> or a <strong>parts cabinet</strong>. It does not run on its own; its purpose is to be “consulted and drawn from” by other programs. Rust dictates that the “front door” file of this kind of crate is called <strong><code>lib.rs</code></strong> — everyone who comes looking enters through this door.</li>
+<li><strong>Binary crate</strong>: like a <strong>machine with a power button</strong>. It runs on its own, and its entry file is called <strong><code>main.rs</code></strong>.</li>
+</ul>
+<p>So which kind is our <code>process</code>? Open its directory and you will see <code>src/lib.rs</code>, and <strong>no</strong> <code>main.rs</code>. The answer is clear: <code>process</code> is a <strong>library crate</strong>. It has no intention of running itself; its mission is to be picked up and used by other programs — for example, when some upstream program needs to manage a bunch of child processes, it references <code>process</code> and calls the string of names we just saw.</p>
+<blockquote>
+<p>One detail worth pausing on: you may have seen Rust projects that have both a <code>lib.rs</code> and a <code>main.rs</code>. That is usually a project that provides a library and also ships a small program for demonstration or direct execution. But the minimal, cleanest case is to pick one — as <code>process</code> does, being only a library.</p>
+</blockquote>
+<p>One comparison worth remembering: if you have written Go, you can roughly think of a crate as “a package inside a module”; if you have written JS/Node, you can think of it as “a package (corresponding to one <code>package.json</code>).” It is not exactly the same, but this picture helps you build intuition.</p>
+<h2 id="mod-and-use-dividing-the-inside-of-the-crate-into-drawers"><a class="header" href="#mod-and-use-dividing-the-inside-of-the-crate-into-drawers">mod and use: dividing the inside of the crate into drawers</a></h2>
+<p>A crate is a wooden crate, but you cannot just dump all the parts into it in one heap — too messy. You need <strong>drawers</strong> to group related parts together. In Rust, this “drawer” is called a <strong>module</strong>, and the keyword written out is <code>mod</code>.</p>
+<p>Picture it again: a module is like <strong>a room in a building</strong>, or <strong>a drawer in a filing cabinet</strong>. Each drawer holds one category of things (<code>spec.rs</code> holds the spec list, <code>traits.rs</code> holds the interface contracts, <code>tokio_process.rs</code> holds the concrete implementation), and each drawer has its own <strong>label</strong> (name). So even if two drawers contain things with the same name, they will not clash — because their full name is “drawer name + thing name.”</p>
+<p>Writing the full name every time gets tiring when names are that long. That is where <strong><code>use</code></strong> comes in. The job of <code>use</code> is like <strong>saving a long phone number as a short nickname</strong> in your contacts: once saved, you just say the nickname to dial, without typing out that long string every time.</p>
+<p>Abstract talk is useless — let us look at what is <strong>actually</strong> written in this crate’s “front door,” <code>src/lib.rs</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>mod spec;
+mod tokio_process;
+mod traits;
+
+pub use spec::{ProcessSpec, ProcessStdio};
+pub use tokio_process::{TokioManagedProcess, TokioProcessSpawner};
+pub use traits::{ManagedProcess, ProcessSpawner};
+<span class="boring">}</span></code></pre>
+<p>Reading it piece by piece:</p>
+<ul>
+<li><code>mod spec;</code> — this line says: “I have a drawer here called <code>spec</code>.” Rust will automatically look for the file <code>spec.rs</code> and treat it as the contents of the <code>spec</code> drawer. So you do <strong>not</strong> need to “register” <code>spec.rs</code> anywhere else — the line <code>mod spec;</code> is the registration. The next two lines work the same way, corresponding to <code>tokio_process.rs</code> and <code>traits.rs</code> respectively.</li>
+<li><code>pub use spec::{ProcessSpec, ProcessStdio};</code> — “take <code>ProcessSpec</code> and <code>ProcessStdio</code> from the <code>spec</code> drawer, set them out at the front door, and allow people outside to see them.” Here <code>use</code> does the “take it out and set it down,” and <code>pub</code> does the “allow others to see.” Without <code>pub</code>, the items are set out but the door stays shut — people outside still cannot reach them.</li>
+</ul>
+<p>💡 Look back at the “storefront” list from the first section — <code>ProcessSpec</code>, <code>ProcessStdio</code>, <code>ProcessSpawner</code>, <code>ManagedProcess</code>, <code>TokioProcessSpawner</code>, <code>TokioManagedProcess</code>. They are exactly the six names set out at the front door here through <code>pub use</code>. Section matches section, perfectly. Anything beyond these six names (for example, the <code>run_process_lifecycle</code> inside <code>tokio_process.rs</code>) stays shut away in its drawer — invisible and untouchable from the outside. That is precisely the effect modularity is after.</p>
+<h2 id="cargotoml-the-packing-slip-for-this-crate"><a class="header" href="#cargotoml-the-packing-slip-for-this-crate">Cargo.toml: the “packing slip” for this crate</a></h2>
+<p>The crate is built, but on the outside you still need to stick on a label that states clearly: what is this crate called, what version is it, and which other crates does it need to work with. This label is the <strong><code>Cargo.toml</code></strong> file.</p>
+<p>And <strong>the tool that ships, manages, and moves these crates around</strong> is called <strong>Cargo</strong> — it is simultaneously your <strong>compiler dispatcher</strong> and your <strong>package manager</strong>: you just declare in <code>Cargo.toml</code> “I need the <code>tokio</code> crate,” and Cargo automatically downloads, compiles, and assembles it for you. If you have written Node, you can think of Cargo as <code>npm</code> plus a build tool combined, and <code>Cargo.toml</code> as its corresponding <code>package.json</code>.</p>
+<p>Let us look at this crate’s real <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[package]
+name = "process"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "process"
+path = "src/lib.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync"] }
+
+[dev-dependencies]
+pretty_assertions = { version = "1" }
+tempfile = { version = "3" }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread", "time"] }
+</code></pre>
+<p>Taking it apart section by section:</p>
+<ul>
+<li><strong><code>[package]</code></strong>: the “ID card” for this crate. <code>name = "process"</code> is its name, what others use when they reference it; <code>version = "0.1.0"</code> is the version number; <code>edition = "2024"</code> is the <strong>Rust edition</strong> it uses — you can think of this as “a version profile of the Rust language.” Every few years Rust gathers up a batch of new habits and new rules and bundles them into an edition; <code>2024</code> is the latest profile at the time of writing. Note that an edition is <strong>not the same as</strong> the compiler version — it is more like a set of “default switches”: the same compiler, given a different edition, turns on a different set of language rules.</li>
+<li><strong><code>[lib]</code></strong>: this tells Cargo explicitly “this is a library crate, and its front door is at <code>src/lib.rs</code>.” In fact, even without this section, Cargo looks for <code>src/lib.rs</code> by default; writing it out here is just for clarity. If you were making a binary crate, the corresponding entry would be <code>src/main.rs</code>, and that section would usually be written as <code>[bin]</code>, or simply omitted (defaulting to <code>src/main.rs</code>).</li>
+<li><strong><code>[dependencies]</code></strong>: the other crates that this crate depends on to <strong>run normally</strong>. Only one is listed here, <code>tokio</code>; the string in <code>features</code> means “I only turn on these few feature modules of tokio” — tokio is large, and selecting on demand saves a fair amount of compile time and binary size.</li>
+<li><strong><code>[dev-dependencies]</code></strong>: crates needed only when <strong>writing tests and examples</strong>; they do not count toward the dependencies you publish to others. Note that <code>tokio</code> shows up here again, with <code>rt-multi-thread</code> and <code>time</code> added to its <code>features</code> — because the tests need a multi-threaded runtime and timing functionality, which the actual library does not use.</li>
+</ul>
+<blockquote>
+<p>By the way: there is also a <code>Cargo.lock</code> in the directory. It is <strong>not</strong> something you write by hand — it is a “dependency version lock list” that Cargo generates automatically, recording the exact version each dependency ended up using. Library crates usually put it in <code>.gitignore</code> and leave locking to the consumer; binary crates generally commit it, so that everyone builds the same versions.</p>
+</blockquote>
+<h2 id="the-two-pitfalls-beginners-hit-most-easily"><a class="header" href="#the-two-pitfalls-beginners-hit-most-easily">The two pitfalls beginners hit most easily</a></h2>
+<ol>
+<li>
+<p><strong>“Why can’t the outside find what I wrote?” — most likely you forgot <code>pub</code>.</strong>
+Rust’s default temperament is “door shut”: anything inside a drawer, unless you actively <code>pub</code> it, is invisible from the outside. You clearly wrote <code>ProcessSpec</code> in <code>spec.rs</code>, but as long as <code>lib.rs</code> does not have a <code>pub use</code> to bring it to the front door, anyone referencing <code>process::ProcessSpec</code> will be told “no such thing.” Remember this rule: <strong>written in a file ≠ visible to the outside.</strong></p>
+</li>
+<li>
+<p><strong>“Where did I register <code>spec.rs</code>?” — it is that one line, <code>mod spec;</code>.</strong>
+People coming from Python / JS often go looking for an “import the file” action, only to find that Rust seems to “use it without importing.” In truth, the <code>mod spec;</code> line in <code>src/lib.rs</code> is the all-in-one import-and-register line; and Rust looks for the corresponding file by name (<code>spec</code> → <code>spec.rs</code>). One more note: Rust also has an older module-file style, <code>spec/mod.rs</code>; the recommended style nowadays is <code>spec.rs</code> — which is exactly the new style you see in this project.</p>
+</li>
+</ol>
+<h2 id="recap"><a class="header" href="#recap">Recap</a></h2>
+<ul>
+<li>A <strong>crate</strong> is the largest unit of organization in Rust, like a sealed <strong>wooden crate</strong>, ultimately compiled into one finished product: either a library (front door <code>lib.rs</code>) or an executable program (entry <code>main.rs</code>). <code>process</code> is a <strong>library crate</strong>.</li>
+<li><strong><code>mod</code></strong> divides the inside of the crate into “drawers” (modules), where the file name is the module name; <strong><code>use</code></strong> brings a name out of a drawer to be used, and <code>pub</code> decides whether it can be seen from the outside.</li>
+<li>The few lines of <code>mod ...;</code> + <code>pub use ...;</code> in <code>src/lib.rs</code> are exactly what place the six “storefront” names from the first section at the front door.</li>
+<li><strong><code>Cargo.toml</code></strong> is the crate’s packing slip: <code>[package]</code> is the ID card (name, version, edition), <code>[lib]</code> points to the front door, <code>[dependencies]</code> is the real dependencies, and <code>[dev-dependencies]</code> is the dependencies needed only for tests.</li>
+<li><strong>Cargo</strong> is the tool that ships, downloads, and compiles these crates; <code>Cargo.lock</code> is the version lock list it generates automatically — you do not write it by hand.</li>
+</ul>
+<p>In the next post, we will actually step inside <code>spec.rs</code> and see how the “spec list” that <code>ProcessSpec</code> represents is put together piece by piece — and along the way we will run into a few concepts in Rust that are very important and very counter-intuitive. The first read may make you frown, and that is fine; we will take them apart step by step when we get there.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="terminology"><a class="header" href="#terminology">Terminology</a></h1>
+<p>Terms introduced in each blog post, paired with the post number that first introduces them.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Term</th><th>Meaning (short)</th><th>First introduced</th></tr>
+</thead>
+<tbody>
+<tr><td><code>crate</code></td><td>The largest unit of organization in Rust; compiles into one artifact (a library or a binary).</td><td>01</td></tr>
+<tr><td>library crate</td><td>A crate meant to be used by other code; its root file is <code>lib.rs</code>.</td><td>01</td></tr>
+<tr><td>binary crate</td><td>A crate that runs on its own; its entry file is <code>main.rs</code>.</td><td>01</td></tr>
+<tr><td><code>lib.rs</code></td><td>The root / “front door” of a library crate.</td><td>01</td></tr>
+<tr><td><code>main.rs</code></td><td>The entry point of a binary crate.</td><td>01</td></tr>
+<tr><td>module (<code>mod</code>)</td><td>A named grouping of code inside a crate; the file name maps to the module name (e.g. <code>spec</code> -&gt; <code>spec.rs</code>).</td><td>01</td></tr>
+<tr><td><code>use</code></td><td>Brings a name into scope so it can be referred to by its short name.</td><td>01</td></tr>
+<tr><td>re-export (<code>pub use</code>)</td><td>Exposes a name from a nested module at a higher path, via <code>use</code> combined with <code>pub</code>.</td><td>01</td></tr>
+<tr><td>visibility (<code>pub</code>)</td><td>Controls whether an item can be seen from outside its module; the default is private.</td><td>01</td></tr>
+<tr><td><code>Cargo</code></td><td>Rust’s build tool and package manager.</td><td>01</td></tr>
+<tr><td><code>Cargo.toml</code></td><td>The manifest / “packing list” of a crate: name, version, edition, dependencies.</td><td>01</td></tr>
+<tr><td>edition</td><td>A bundled set of language defaults (e.g. <code>2024</code>); not the same as the compiler version.</td><td>01</td></tr>
+<tr><td>dependency (<code>[dependencies]</code>)</td><td>Other crates required for the crate to build and run.</td><td>01</td></tr>
+<tr><td><code>[dev-dependencies]</code></td><td>Dependencies used only for tests, examples, and benchmarks.</td><td>01</td></tr>
+<tr><td><code>Cargo.lock</code></td><td>Auto-generated file pinning exact dependency versions; not hand-written.</td><td>01</td></tr>
+</tbody>
+</table>
+</div>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
-                            <a rel="next prefetch" href="01-crate-module-cargo.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -230,9 +367,6 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
-                    <a rel="next prefetch" href="01-crate-module-cargo.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                    </a>
             </nav>
 
         </div>
@@ -259,7 +393,13 @@
         <script src="book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
+        <script src="theme/lang-switcher-bc921a64.js"></script>
 
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
 
 
     </div>
