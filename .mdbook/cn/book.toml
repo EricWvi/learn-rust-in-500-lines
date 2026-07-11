@@ -6,3 +6,8 @@ language = "zh-CN"
 [build]
 build-dir = "../../book/cn"
 create-missing = true
+
+[output.html]
+additional-js = ["theme/lang-switcher.js"]
+additional-css = ["theme/lang-switcher.css"]
+git-repository-url = "https://github.com/EricWvi/learn-rust-in-500-lines"

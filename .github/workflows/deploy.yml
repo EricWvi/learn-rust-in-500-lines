@@ -17,29 +17,13 @@ jobs:
       - name: Install mdBook
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: latest
+          mdbook-version: v0.5.4
 
       - name: Build English book
         run: mdbook build .mdbook/en
 
       - name: Build Chinese book
         run: mdbook build .mdbook/cn
-
-      - name: Create root redirect to English book
-        run: |
-          cat > book/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta http-equiv="refresh" content="0;URL='en/index.html'">
-            <title>Learn Rust in 500 Lines</title>
-          </head>
-          <body>
-            <p><a href="en/index.html">English</a> | <a href="cn/index.html">中文</a></p>
-          </body>
-          </html>
-          EOF
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

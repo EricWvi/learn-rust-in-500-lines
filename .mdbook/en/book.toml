@@ -4,5 +4,10 @@ authors = []
 language = "en"
 
 [build]
-build-dir = "../../book/en"
+build-dir = "../../book"
 create-missing = true
+
+[output.html]
+additional-js = ["theme/lang-switcher.js"]
+additional-css = ["theme/lang-switcher.css"]
+git-repository-url = "https://github.com/EricWvi/learn-rust-in-500-lines"
