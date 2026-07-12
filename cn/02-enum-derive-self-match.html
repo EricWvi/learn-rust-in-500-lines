@@ -1,0 +1,483 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>读懂一个枚举：derive、self/Self 与 match - 500 行代码学会 Rust</title>
+
+
+        <!-- Custom HTML head -->
+        <template id="lang-icon"><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></svg></span></template>
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/lang-switcher-607aa6b5.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-8895d574.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-ea239a89.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">500 行代码学会 Rust</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/EricWvi/learn-rust-in-500-lines" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-02-篇读懂一个枚举deriveselfself-与-matchrust-是表达式语言"><a class="header" href="#第-02-篇读懂一个枚举deriveselfself-与-matchrust-是表达式语言">第 02 篇：读懂一个枚举：derive、self/Self 与 match（Rust 是表达式语言）</a></h1>
+<h2 id="一先看这段真实代码"><a class="header" href="#一先看这段真实代码">一、先看这段真实代码</a></h2>
+<p>这一篇我们走进 <code>spec.rs</code>，看 <code>ProcessSpec</code> 这份“清单“是怎么搭起来的。不过在动手拆 <code>ProcessSpec</code> 之前，清单里反复用到的一个小类型——<code>ProcessStdio</code>——本身就值得单独用一整篇来聊。它只有十几行，却把 Rust 里好几个最关键的概念都串在了一起。</p>
+<p>我们先把它的定义原样搬出来：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Stdio policy used when spawning a child process.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ProcessStdio {
+    /// Create an owned async pipe that callers can take from the managed process.
+    #[default]
+    Piped,
+    /// Inherit the corresponding stdio stream from the parent process.
+    Inherit,
+    /// Connect the corresponding stdio stream to the platform null device.
+    Null,
+}
+
+impl ProcessStdio {
+    pub(crate) fn as_stdio(self) -&gt; Stdio {
+        match self {
+            Self::Piped =&gt; Stdio::piped(),
+            Self::Inherit =&gt; Stdio::inherit(),
+            Self::Null =&gt; Stdio::null(),
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>如果你第一次读 Rust，这段代码看起来会很“密集“。短短十几行里塞满了让人皱眉的符号：</p>
+<ul>
+<li>第一行 <code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code>——这一串大写名字像念咒一样，各自在说什么？</li>
+<li><code>Piped</code> 头上的 <code>#[default]</code> 又是做什么用的？</li>
+<li><code>as_stdio(self)</code> 里的 <code>self</code>（小写），和函数体里 <code>Self::Piped</code> 的 <code>Self</code>（大写），看起来只差一个大小写，意思一样吗？</li>
+<li>最让人困惑的：<code>as_stdio</code> 明明声明返回 <code>Stdio</code>，可函数体里既没有 <code>return</code>，最后那个 <code>match</code> 块也没加分号——它怎么就“返回“了？</li>
+</ul>
+<p>这些问题各自独立，但答案会汇到同一个地方：<strong>Rust 是一门以“表达式（expression）“为核心的语言</strong>。我们先从最扎眼的那行 <code>#[derive(...)]</code> 开始拆。</p>
+<h2 id="二enum-与-impl先看清这两块的形状"><a class="header" href="#二enum-与-impl先看清这两块的形状">二、enum 与 impl：先看清这两块的形状</a></h2>
+<p>在解释 <code>#[derive(...)]</code> 之前，先花一小段把这块代码的整体形状交代清楚，免得后面的细节没有着落。</p>
+<p><code>enum ProcessStdio { ... }</code> 定义的是一个<strong>枚举（enum）</strong>。写过 C、Java 或 TypeScript 的人对它不会陌生：它是一种“这个类型的取值，只能是这里列出的几种之一“的类型。<code>ProcessStdio</code> 这个类型只有三个可能的值：<code>Piped</code>、<code>Inherit</code>、<code>Null</code>——分别表示子进程的某条标准流是“建一根管道“、“继承父进程的”、还是“接到空设备上“。</p>
+<p>在 Rust 里，这些“几种之一“里的每一种，叫作一个<strong>变体（variant）</strong>。注意是“变体“而不是“实例“：<code>Piped</code>、<code>Inherit</code>、<code>Null</code> 是 <code>ProcessStdio</code> 的三个变体。</p>
+<p>下面的 <code>impl ProcessStdio { ... }</code> 是一块<strong>实现块（impl block）</strong>。它的作用是：给 <code>ProcessStdio</code> 这个类型“挂上“一些它自己的函数。比如 <code>as_stdio</code> 就是挂上去的一个函数——它把三种 stdio 策略，转换成标准库 <code>std::process::Stdio</code> 需要的对应配置。</p>
+<blockquote>
+<p>一个小区分：<code>impl</code> 块里写的函数，统称<strong>关联函数（associated function）</strong>。如果它的第一个参数是 <code>self</code>（小写），我们习惯叫它<strong>方法（method）</strong>，要用 <code>值.方法名()</code> 的形式调用；如果第一个参数不是 <code>self</code>，它更接近别的语言里的“静态方法“或“构造函数“，要用 <code>类型名::函数名()</code> 调用。这里的 <code>as_stdio(self)</code> 是方法。</p>
+</blockquote>
+<p>整体形状清楚了，我们回到那行扎眼的 <code>#[derive(...)]</code>。</p>
+<h2 id="三一行-derive-背后六个名字各自在做什么"><a class="header" href="#三一行-derive-背后六个名字各自在做什么">三、一行 derive 背后：六个名字各自在做什么</a></h2>
+<p><code>#[derive(...)]</code> 是一种<strong>属性（attribute）</strong>——写在类型定义上方、用 <code>#[...]</code> 包起来的一行“指令“。<code>derive</code> 的意思是“派生“：它的作用是请编译器<strong>自动帮这个类型实现</strong>括号里列出的那一堆能力。括号里的每个名字（<code>Debug</code>、<code>Clone</code>、……）都是一个 <strong>trait</strong>——你可以暂时把 trait 理解成“一种能力契约“或“一个接口“。所以这行的整体意思是：</p>
+<blockquote>
+<p>“编译器，请你按默认规则，给 <code>ProcessStdio</code> 自动实现 <code>Debug</code>、<code>Clone</code>、<code>Copy</code>、<code>Default</code>、<code>PartialEq</code>、<code>Eq</code> 这六种能力。”</p>
+</blockquote>
+<p>否则，这些能力你都得自己手写一大段代码。<code>derive</code> 就是帮你省掉这些样板。下面我们逐个看这六种能力分别是什么。</p>
+<p><strong><code>Debug</code>：让它能被打印。</strong> 加了 <code>Debug</code>，你就能用 <code>{:?}</code> 把值打印出来调试：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>println!("{:?}", ProcessStdio::Piped); // 打印：Piped
+<span class="boring">}</span></code></pre>
+<p>没有它，<code>println!</code> 会直接拒绝你。</p>
+<p><strong><code>Clone</code>：让它能被显式复制。</strong> 加了 <code>Clone</code>，你就能调用 <code>.clone()</code> 造出一份新的副本：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = ProcessStdio::Piped;
+let b = a.clone(); // a 还在，b 是一份新拷贝
+<span class="boring">}</span></code></pre>
+<p><strong><code>Copy</code>：让它在赋值时被“复制“而非“移动“。</strong> 这一条要多解释两句。在 Rust 里，把一个值赋给另一个变量、或者把它传进函数，默认行为是<strong>转移（move）</strong>——所有权从原来的地方“搬走“，原来的名字就不能再用了。但如果一个类型实现了 <code>Copy</code>，赋值时就会变成安安静静地<strong>复制</strong>一份，原来的名字照样能用：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = ProcessStdio::Piped;
+let b = a;          // 因为 ProcessStdio 是 Copy，这里复制而非转移
+let c = a;          // a 还能用，没问题
+<span class="boring">}</span></code></pre>
+<p>至于“为什么 Rust 要专门区分’复制’和’转移’这回事、它和所有权（ownership）系统又是什么关系“——这是一整块硬骨头，我们留到以后专门一篇讲。现在你只要记住结论：像 <code>ProcessStdio</code> 这样内部不装任何数据的小枚举，复制它代价极小，所以加上 <code>Copy</code> 是合理且常见的做法。</p>
+<p><strong><code>PartialEq</code>：让它能用 <code>==</code> 和 <code>!=</code> 比较。</strong> 加了它，两个 <code>ProcessStdio</code> 值就能比相等：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if some_stdio == ProcessStdio::Piped { ... }
+<span class="boring">}</span></code></pre>
+<p><strong><code>Eq</code>：声明这种相等是“完全的“。</strong> <code>PartialEq</code> 让你“能比较“，<code>Eq</code> 则是给类型盖个章：“我的相等关系是严格的自反、对称、传递”——对枚举来说这几乎是显然成立的。两者一起 derive 是固定搭配。<code>PartialEq</code> 和 <code>Eq</code> 为何要分开，要等讲到浮点数（<code>f32</code>/<code>f64</code> 的 <code>NaN</code> 不满足自反性，所以不能 derive <code>Eq</code>）时才说得清，现在把它当成“<code>PartialEq + Eq</code> = 完整相等“即可。</p>
+<p><strong><code>Default</code>：让它有一个“默认值“。</strong> 加了它，就能用 <code>ProcessStdio::default()</code> 拿到一个默认实例。但枚举有好几个变体，编译器怎么知道默认该选哪个？这就轮到 <code>Piped</code> 头上那行 <code>#[default]</code> 上场了：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[default]
+Piped,
+<span class="boring">}</span></code></pre>
+<p><code>#[default]</code> 是一个标记，告诉编译器：“<code>derive(Default)</code> 时，就返回这个变体。” 于是：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let d = ProcessStdio::default();
+assert_eq!(d, ProcessStdio::Piped); // 成立
+<span class="boring">}</span></code></pre>
+<blockquote>
+<p>⚠️ 如果你 <code>#[derive(Default)]</code> 了一个枚举，却忘了在任何一个变体上标 <code>#[default]</code>，编译器会直接报错。一个枚举的 <code>Default</code> 必须明确指向一个变体，不能让编译器去猜。</p>
+</blockquote>
+<p>把六种能力和 <code>#[default]</code> 串起来，那行看似念咒的 <code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code>，意思就很朴素了：让这个枚举能被打印、能被复制、赋值时复制而非转移、有默认值、能被比较相等。每一项都是日常用得上的能力，<code>derive</code> 只是把它们打包自动生成了。</p>
+<h2 id="四self-与-self小写是值大写是类型"><a class="header" href="#四self-与-self小写是值大写是类型">四、self 与 Self：小写是“值“，大写是“类型“</a></h2>
+<p>下面回到方法本身。<code>as_stdio</code> 的签名是：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub(crate) fn as_stdio(self) -&gt; Stdio
+<span class="boring">}</span></code></pre>
+<p>这里有 <code>self</code>（小写）；而函数体里又出现了 <code>Self</code>（大写）：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>match self {
+    Self::Piped =&gt; ...,
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>这一大一小，是两回事。</p>
+<p><strong><code>self</code>（小写）是“值“。</strong> 它是方法被调用时、那个被调用对象的值本身。你写 <code>my_stdio.as_stdio()</code>，那么 <code>as_stdio</code> 里的 <code>self</code> 就代表 <code>my_stdio</code> 这个值。在别的语言里，这个角色通常叫 <code>this</code>（Java/C++/C#）或 <code>self</code>（Python），只是 Rust 把它显式写在了参数列表的第一个位置。</p>
+<p><code>self</code> 在 Rust 里有三种写法，差别很重要，值得一次记全：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>写法</th><th>含义</th><th>调用后原值还能用吗</th></tr>
+</thead>
+<tbody>
+<tr><td><code>self</code></td><td>直接拿走这个值（转移所有权）</td><td>不能，它被消耗了</td></tr>
+<tr><td><code>&amp;self</code></td><td>借用，只读不改</td><td>能，原值不动</td></tr>
+<tr><td><code>&amp;mut self</code></td><td>借用，可以改</td><td>能，但调用期间独占</td></tr>
+</tbody>
+</table>
+</div>
+<p>回头看代码，<code>as_stdio(self)</code> 用的是第一种 <code>self</code>——直接拿走值。对一个 <code>Copy</code> 类型来说这无所谓（反正会被复制），但语义上它表示“我消费掉这个值、用它算出结果“。而在 <code>ProcessSpec</code> 的实现块里你会看到另外两种的大量用例：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// ProcessSpec 的实现块里
+pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+
+pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self {
+    self.stdin = stdin;
+    self
+}
+
+pub fn stdin_policy(&amp;self) -&gt; ProcessStdio {
+    self.stdin
+}
+<span class="boring">}</span></code></pre>
+<p><code>stdin(mut self) -&gt; Self</code> 拿走旧的 <code>self</code>、改一改、再返回一个新的——这是 Rust 里非常常见的**建造者模式（builder pattern）**写法：每个配置方法都“消耗旧值、返回新值“，于是你可以一路点下去：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let spec = ProcessSpec::new("echo")
+    .arg("hello")
+    .stdin(ProcessStdio::Null)
+    .stdout(ProcessStdio::Piped);
+<span class="boring">}</span></code></pre>
+<p>而 <code>stdin_policy(&amp;self)</code> 用的是 <code>&amp;self</code>——只借用它来读取，不会消耗 <code>spec</code>，调用完 <code>spec</code> 还在。</p>
+<p><strong><code>Self</code>（大写）是“类型“。</strong> 它是“当前所在 <code>impl</code> 块的那个类型“的一个别名。在 <code>impl ProcessStdio</code> 块里，<code>Self</code> 就等价于 <code>ProcessStdio</code>。所以函数体里写 <code>Self::Piped</code> 和写 <code>ProcessStdio::Piped</code> 完全一样，只是更短、而且以后改类型名时不用跟着改。同理，<code>stdin(...) -&gt; Self</code> 表示“返回一个 <code>ProcessSpec</code>“，<code>new(...) -&gt; Self</code> 也是。</p>
+<p>一句话记住：<strong><code>self</code> 是“我这个值“，<code>Self</code> 是“我这个类型“。</strong></p>
+<h2 id="五match-不加分号怎么就返回了"><a class="header" href="#五match-不加分号怎么就返回了">五、match 不加分号，怎么就“返回“了？</a></h2>
+<p>这是这段代码里最反直觉、也最值得想通的一点。<code>as_stdio</code> 声明返回 <code>Stdio</code>，可函数体长这样：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub(crate) fn as_stdio(self) -&gt; Stdio {
+    match self {
+        Self::Piped =&gt; Stdio::piped(),
+        Self::Inherit =&gt; Stdio::inherit(),
+        Self::Null =&gt; Stdio::null(),
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>没有 <code>return</code>，最后一个 <code>match</code> 也没加分号——它怎么就成了返回值？</p>
+<p>答案在于一句概括：<strong>Rust 是一门以“表达式（expression）“为核心的语言。</strong> 在别的很多语言里，<code>match</code>/<code>switch</code> 只是一个“根据情况执行不同分支“的<strong>语句（statement）</strong>——它执行完就算了，不产生值。但在 Rust 里，<code>match</code> 是一个<strong>表达式</strong>——它会<strong>算出一个值</strong>。每个 <code>=&gt;</code> 右边都是一个表达式，<code>match</code> 整体就求值为命中分支那个表达式的结果。</p>
+<p>既然 <code>match</code> 是个表达式、会求值，那它本身就能当函数的返回值用——<strong>只要它是函数体里最后一个表达式，且后面不加分号</strong>。Rust 的规则是：函数体（或任何代码块）里最后一个表达式，自动成为这个函数（或块）的返回值，不需要写 <code>return</code>。所以上面三行 <code>Stdio::piped()</code> 等，哪一个被命中，<code>match</code> 就求值成对应的 <code>Stdio</code>，整个函数就返回它。</p>
+<p>这个“不加分号就是值“的规则，不限于 <code>match</code>。一旦你接受它，Rust 的很多写法就突然说得通了：</p>
+<p><strong><code>if</code> 也是表达式：</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = if condition { 1 } else { 2 };
+<span class="boring">}</span></code></pre>
+<p>在 Rust 里，<code>if</code> 直接产生一个值，可以赋给变量。这在 Python/Java 里是做不到的（那里的 <code>if</code> 是纯语句，不产生值）。</p>
+<p><strong>代码块 <code>{}</code> 也是表达式：</strong> 一个 <code>{}</code> 块会求值为它<strong>最后一个不带分号的表达式</strong>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = {
+    let a = 3;
+    let b = 4;
+    a + b          // 注意：没有分号
+};                 // result = 7
+<span class="boring">}</span></code></pre>
+<p>那么分号到底起了什么作用？这正是关键：<strong>在 Rust 里，给一个表达式加上分号，就把它变成了一个“语句“——它照常执行，但它的值被丢弃了。</strong> 你可以亲手感受一下区别：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = { 5 };    // 块的最后一个表达式是 5（无分号），a = 5
+let b = { 5; };   // 最后是一个 "5;" 语句，块的值被丢弃，b 拿到的是空值 ()
+<span class="boring">}</span></code></pre>
+<p>第二行那个 <code>()</code>（读作 unit，可以理解成“没有有意义的值“），就是加错分号的代价。</p>
+<p>💡 所以可以总结成一条几乎覆盖全部的判断：<strong>Rust 里几乎“一切皆表达式“，只有两类例外——一是 <code>let</code> 这类变量声明（它们是语句，不产生值），二是任何“表达式后面加了分号“（一加分号，就从表达式降级成了语句，值被丢弃）。</strong> 把这两类排除掉，剩下的——<code>if</code>、<code>match</code>、代码块、函数体——都是会求值的表达式。这就是“Rust 是表达式语言“的真正含义。</p>
+<blockquote>
+<p>顺带一提：Rust 也允许你显式写 <code>return 值;</code> 来提前返回，函数中间想中途退出时尤其有用。只是函数末尾的返回值，按惯例用“不加分号的最后一个表达式“来表达，更简洁。</p>
+</blockquote>
+<h2 id="六回到-match模式匹配到底强在哪"><a class="header" href="#六回到-match模式匹配到底强在哪">六、回到 match：模式匹配到底强在哪</a></h2>
+<p>既然 <code>match</code> 是会求值的表达式，我们再回头看它的“模式匹配（pattern matching）“本身——为什么 Rust 程序员这么喜欢它？</p>
+<p><strong>第一，它强迫你“列全所有情况“。</strong> 看回 <code>as_stdio</code> 的 <code>match</code>，三个变体 <code>Piped</code>、<code>Inherit</code>、<code>Null</code> 一个不漏地列了出来。这不是作者自觉，而是编译器<strong>强制要求</strong>：枚举有多少个变体，你的 <code>match</code> 就必须覆盖多少个。漏掉一个，编译器直接拒绝编译。这意味着将来有人给 <code>ProcessStdio</code> 加了第四个变体，所有用到 <code>match</code> 的地方都会立刻被编译器揪出来，提醒你补上新分支——这在维护大型项目时是救命的能力。</p>
+<p>如果你确实只关心其中几种、其余都想“打包处理“，可以用下划线通配符 <code>_</code>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>match stdio {
+    ProcessStdio::Piped =&gt; "建管道",
+    _ =&gt; "其它情况",          // 通配，兜住 Inherit 和 Null
+}
+<span class="boring">}</span></code></pre>
+<p>但用了 <code>_</code> 也就放弃了“新增变体时提醒我“的好处，所以像 <code>as_stdio</code> 这种每个分支都该有不同行为的场景，老老实实把每个变体写全才稳妥。</p>
+<p><strong>第二，它不只能匹配枚举。</strong> <code>match</code> 的模式可以是整数、字符串字面量、元组、结构体，甚至能一边匹配一边拆解出内部数据。几个例子：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 匹配整数
+let label = match exit_code {
+    0 =&gt; "成功",
+    _ =&gt; "失败",
+};
+
+// 匹配元组，同时比较两个值
+let both = match (a_ready, b_ready) {
+    (true, true) =&gt; "都就绪",
+    (false, false) =&gt; "都没就绪",
+    _ =&gt; "一个就绪",
+};
+
+// 匹配并拆解结构体
+struct Point { x: i32, y: i32 }
+match point {
+    Point { x: 0, y } =&gt; println!("在 y 轴上，y = {}", y),
+    Point { x, y }    =&gt; println!("普通点 ({}, {})", x, y),
+}
+
+// 带守卫（guard）：在模式后加额外条件
+let kind = match n {
+    v if v &lt; 0 =&gt; "负数",
+    0          =&gt; "零",
+    _          =&gt; "正数",
+};
+<span class="boring">}</span></code></pre>
+<p>注意第三个例子里 <code>Point { x: 0, y }</code>——它同时做了两件事：要求 <code>x</code> 正好等于 0，并且把 <code>y</code> 的值“绑定“到一个同名变量上，供这个分支里使用。<strong>“一边判断、一边拆解、一边取值“全都写在模式这一行里</strong>，这正是 <code>match</code> 比一般 <code>switch</code> 强大得多的地方。</p>
+<p>把这些合起来看，<code>as_stdio</code> 里那个看起来朴素的三分支 <code>match</code>，其实同时动用了“枚举穷尽匹配“和“按变体各自求出一个 <code>Stdio</code> 值“两件本事——前者是编译器帮你盯着的正确性保证，后者是表达式语言带来的简洁返回方式。</p>
+<h2 id="七小结"><a class="header" href="#七小结">七、小结</a></h2>
+<ul>
+<li><code>ProcessStdio</code> 是一个<strong>枚举（enum）</strong>，有三个<strong>变体</strong> <code>Piped</code>/<code>Inherit</code>/<code>Null</code>；<code>impl</code> 块负责给类型挂上方法，例如 <code>as_stdio</code>。</li>
+<li><code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code> 让编译器自动实现六种能力：<code>Debug</code>（可打印）、<code>Clone</code>（可显式复制）、<code>Copy</code>（赋值时复制而非转移，所有权细节留待以后讨论）、<code>PartialEq + Eq</code>（可比较相等）、<code>Default</code>（有默认值）。<code>#[default]</code> 指明 <code>Default</code> 默认取 <code>Piped</code> 这个变体。</li>
+<li><strong><code>self</code>（小写）是值</strong>，是方法被调用时的那个对象，有 <code>self</code>/<code>&amp;self</code>/<code>&amp;mut self</code> 三种形式（对应消耗、只读借用、可变借用）；<strong><code>Self</code>（大写）是类型</strong>，是当前 <code>impl</code> 块那个类型的别名。</li>
+<li><code>match</code> 不加分号就当返回值，是因为 <strong>Rust 是表达式语言</strong>：<code>match</code>、<code>if</code>、代码块 <code>{}</code>、函数体都是会求值的<strong>表达式</strong>；只有 <code>let</code> 这类<strong>声明</strong>、以及<strong>加了分号的表达式</strong>才降级为<strong>语句</strong>。</li>
+<li><code>match</code> 的强大来自<strong>模式匹配</strong>：编译器强制枚举穷尽、可用 <code>_</code> 通配、能匹配整数/元组/结构体、能一边匹配一边拆解绑定、还能加 <code>guard</code> 守卫。</li>
+</ul>
+<p>下一篇，我们会讨论一下本篇一直没提的一个小尾巴，<code>mut</code>。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="01-crate-module-cargo.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="03-mut-processspec-vec.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="01-crate-module-cargo.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="03-mut-processspec-vec.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/lang-switcher-bc921a64.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

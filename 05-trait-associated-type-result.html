@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Reading the Skeleton of a Rust Project - Learn Rust in 500 Lines</title>
+        <title>trait, Associated Types, and Result - Learn Rust in 500 Lines</title>
 
 
         <!-- Custom HTML head -->
@@ -179,122 +179,149 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="post-01-reading-the-skeleton-of-a-rust-project-crates-modules-and-cargotoml"><a class="header" href="#post-01-reading-the-skeleton-of-a-rust-project-crates-modules-and-cargotoml">Post 01: Reading the Skeleton of a Rust Project (crates, modules, and Cargo.toml)</a></h1>
-<h2 id="first-meet-this-crates-storefront"><a class="header" href="#first-meet-this-crates-storefront">First, meet this crate’s “storefront”</a></h2>
-<p>We are not rushing into concepts. First, let us string together — by name — what this thing called <code>process</code> can do. You do not need to understand what lies behind these names yet; just get the overall picture in your head.</p>
-<p>To spawn a child process, the first step is to prepare a “spec list.” Its name is <code>ProcessSpec</code>. This list lets you fill in quite a few things:</p>
-<ul>
-<li><code>arg</code> and <code>args</code>: add arguments to the command line;</li>
-<li><code>cwd</code>: set the child process’s working directory;</li>
-<li><code>env</code>: set environment variables;</li>
-<li><code>stdin</code>, <code>stdout</code>, <code>stderr</code>: set the policy for the three standard I/O streams, each of which can be <code>Piped</code>, <code>Inherit</code>, or <code>Null</code> (these three are bundled together under the name <code>ProcessStdio</code>);</li>
-<li><code>kill_on_drop</code> and <code>keep_alive_on_drop</code>: decide whether the child process should be killed or kept alive when this list is “dropped.”</li>
-</ul>
-<p>Once the list is ready, you hand it to a “spawner” called <code>ProcessSpawner</code>, call its <code>spawn</code>, and you get back a <code>ManagedProcess</code>. This <code>ManagedProcess</code> is the “handle” to the child process. It lets you:</p>
-<ul>
-<li>check the process id with <code>id</code>;</li>
-<li>pull the three pipes out for your own use with <code>take_stdin</code>, <code>take_stdout</code>, <code>take_stderr</code>;</li>
-<li>take a quick peek at whether it has exited with <code>try_wait</code>;</li>
-<li>wait until it finishes with <code>wait</code>;</li>
-<li>force it to terminate with <code>kill</code>.</li>
-</ul>
-<p>Finally, both the spec list and the handle each have a “ready-made concrete implementation”: <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code>. The <code>Tokio</code> in the name hints that they rely on <code>tokio</code> under the hood, but that is not today’s focus.</p>
-<p>That is enough — run through this string of names once. This whole set — <code>ProcessSpec</code>, <code>ProcessStdio</code>, <code>ProcessSpawner</code>, <code>ManagedProcess</code>, plus <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> — is the entire “storefront” that <code>process</code> puts on display. So the question is: where exactly is this pile of names stored? Let us step inside and take a look.</p>
-<h2 id="crate-the-wooden-crate-that-holds-all-of-this"><a class="header" href="#crate-the-wooden-crate-that-holds-all-of-this">crate: the “wooden crate” that holds all of this</a></h2>
-<p>That pile of names, along with the implementations behind them, is all packed inside something called a <strong>crate</strong> (a wooden shipping crate). It is the largest unit of organization in Rust.</p>
-<p>An analogy: a crate is like a <strong>packed wooden crate</strong>. You put a bunch of parts (code) into the crate, seal it, slap on a label (name, version number), and ship the whole thing out. When someone else wants to use your work, they do not come to you to pick up a single part — they <strong>reference the entire crate</strong>. One crate ultimately compiles into <strong>one</strong> finished product: either a “library” that others can reference, or an “executable program” that can run directly.</p>
-<p>This gives rise to two kinds of crates:</p>
-<ul>
-<li><strong>Library crate</strong>: like a <strong>reference book</strong> or a <strong>parts cabinet</strong>. It does not run on its own; its purpose is to be “consulted and drawn from” by other programs. Rust dictates that the “front door” file of this kind of crate is called <strong><code>lib.rs</code></strong> — everyone who comes looking enters through this door.</li>
-<li><strong>Binary crate</strong>: like a <strong>machine with a power button</strong>. It runs on its own, and its entry file is called <strong><code>main.rs</code></strong>.</li>
-</ul>
-<p>So which kind is our <code>process</code>? Open its directory and you will see <code>src/lib.rs</code>, and <strong>no</strong> <code>main.rs</code>. The answer is clear: <code>process</code> is a <strong>library crate</strong>. It has no intention of running itself; its mission is to be picked up and used by other programs — for example, when some upstream program needs to manage a bunch of child processes, it references <code>process</code> and calls the string of names we just saw.</p>
-<blockquote>
-<p>One detail worth pausing on: you may have seen Rust projects that have both a <code>lib.rs</code> and a <code>main.rs</code>. That is usually a project that provides a library and also ships a small program for demonstration or direct execution. But the minimal, cleanest case is to pick one — as <code>process</code> does, being only a library.</p>
-</blockquote>
-<p>One comparison worth remembering: if you have written Go, you can roughly think of a crate as “a package inside a module”; if you have written JS/Node, you can think of it as “a package (corresponding to one <code>package.json</code>).” It is not exactly the same, but this picture helps you build intuition.</p>
-<h2 id="mod-and-use-dividing-the-inside-of-the-crate-into-drawers"><a class="header" href="#mod-and-use-dividing-the-inside-of-the-crate-into-drawers">mod and use: dividing the inside of the crate into drawers</a></h2>
-<p>A crate is a wooden crate, but you cannot just dump all the parts into it in one heap — too messy. You need <strong>drawers</strong> to group related parts together. In Rust, this “drawer” is called a <strong>module</strong>, and the keyword written out is <code>mod</code>.</p>
-<p>Picture it again: a module is like <strong>a room in a building</strong>, or <strong>a drawer in a filing cabinet</strong>. Each drawer holds one category of things (<code>spec.rs</code> holds the spec list, <code>traits.rs</code> holds the interface contracts, <code>tokio_process.rs</code> holds the concrete implementation), and each drawer has its own <strong>label</strong> (name). So even if two drawers contain things with the same name, they will not clash — because their full name is “drawer name + thing name.”</p>
-<p>Writing the full name every time gets tiring when names are that long. That is where <strong><code>use</code></strong> comes in. The job of <code>use</code> is like <strong>saving a long phone number as a short nickname</strong> in your contacts: once saved, you just say the nickname to dial, without typing out that long string every time.</p>
-<p>Abstract talk is useless — let us look at what is <strong>actually</strong> written in this crate’s “front door,” <code>src/lib.rs</code>:</p>
+                        <h1 id="post-05-trait-associated-types-and-result--two-traits-define-the-whole-interface-contract"><a class="header" href="#post-05-trait-associated-types-and-result--two-traits-define-the-whole-interface-contract">Post 05: trait, Associated Types, and Result — Two Traits Define the Whole Interface Contract</a></h1>
+<h2 id="1-traitsrs-has-only-two-traits-yet-they-nail-everything-down"><a class="header" href="#1-traitsrs-has-only-two-traits-yet-they-nail-everything-down">1. traits.rs has only two traits, yet they nail everything down</a></h2>
+<p>In the first four posts we kept circling inside <code>spec.rs</code>: first <code>ProcessStdio</code>, then <code>ProcessSpec</code>. Now let us switch files and open <code>traits.rs</code>. This file is short — it defines only two <strong>traits</strong>, <code>ProcessSpawner</code> and <code>ManagedProcess</code> — but together they pin down the entire <strong>interface contract</strong> for the roles of “spawner” and “process handle.” Let us pull the original out first:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>mod spec;
-mod tokio_process;
-mod traits;
+</span>use std::future::Future;
+use std::io;
+use std::process::ExitStatus;
 
-pub use spec::{ProcessSpec, ProcessStdio};
-pub use tokio_process::{TokioManagedProcess, TokioProcessSpawner};
-pub use traits::{ManagedProcess, ProcessSpawner};
+use tokio::io::{AsyncRead, AsyncWrite};
+
+use crate::ProcessSpec;
+
+pub trait ProcessSpawner {
+    type Process: ManagedProcess;
+
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+}
+
+pub trait ManagedProcess {
+    type Stdin: AsyncWrite + Unpin + Send + 'static;
+    type Stdout: AsyncRead + Unpin + Send + 'static;
+    type Stderr: AsyncRead + Unpin + Send + 'static;
+
+    fn id(&amp;self) -&gt; Option&lt;u32&gt;;
+    fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;;
+    fn take_stdout(&amp;mut self) -&gt; Option&lt;Self::Stdout&gt;;
+    fn take_stderr(&amp;mut self) -&gt; Option&lt;Self::Stderr&gt;;
+    fn try_wait(&amp;self) -&gt; io::Result&lt;Option&lt;ExitStatus&gt;&gt;;
+    fn wait(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;ExitStatus&gt;&gt; + Send + '_;
+    fn kill(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;()&gt;&gt; + Send + '_;
+}
 <span class="boring">}</span></code></pre>
-<p>Reading it piece by piece:</p>
+<p>Only a few dozen lines, yet a fair number of new things burst out: <code>trait</code> itself, <code>type Process: ManagedProcess</code>, <code>Self::Process</code>, <code>io::Result</code>, <code>'static</code>, <code>Send</code>, <code>impl Future</code>… Do not be intimidated. Most of them orbit around the same core — <strong>trait</strong>. We start by unpacking this most important concept.</p>
+<p>(As a side note on the first line <code>use crate::ProcessSpec;</code>: <code>crate::</code> means “start from the root of this crate” — it pulls in the <code>ProcessSpec</code> that was placed at the front door via <code>pub use</code> back in Post 01.)</p>
+<h2 id="2-trait-a-capability-contract"><a class="header" href="#2-trait-a-capability-contract">2. trait: a “capability contract”</a></h2>
+<p>A <strong>trait</strong> is Rust’s tool for defining a “capability contract” — it declares: “any type that wants to claim it has this capability must provide these methods.” If you have written Java or Go, you can think of it as an <strong>interface</strong>; if you have written TypeScript, think of <code>interface</code> as a “shape contract.” In fact, we already brushed against traits back in Post 02: every name inside <code>#[derive(Debug, Clone, Copy, ...)]</code> — <code>Debug</code>, <code>Clone</code>, <code>Copy</code> — each is a trait; it is just that the compiler implemented them for us automatically back then. Now, we are going to <strong>define</strong> a trait ourselves.</p>
+<p>Defining a trait is essentially listing a “required methods checklist”:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait ProcessSpawner {
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; ...;
+}
+<span class="boring">}</span></code></pre>
+<p>Note that only the method’s <strong>signature</strong> (name, parameters, return type) is written here, no body — this is exactly what a contract should look like: <strong>a trait only stipulates “what methods must exist,” not “how to implement them specifically.”</strong> How to implement is each concrete type’s own business.</p>
+<p><code>ManagedProcess</code> is the same: it lists what a “process handle” must be able to do — report its PID (<code>id</code>), hand over the three pipes (<code>take_stdin</code> / <code>take_stdout</code> / <code>take_stderr</code>), peek at whether it has exited (<code>try_wait</code>), wait for it to exit (<code>wait</code>), force-terminate (<code>kill</code>). Whoever can do these things qualifies as a <code>ManagedProcess</code>.</p>
+<h2 id="3-how-to-implement-a-trait-impl-trait-for-type"><a class="header" href="#3-how-to-implement-a-trait-impl-trait-for-type">3. How to “implement” a trait: impl Trait for Type</a></h2>
+<p>A contract alone is not enough — someone has to fulfill it. In Rust, the syntax for “fulfilling” a trait is <strong><code>impl Trait for Type</code></strong> — “I, this <code>Type</code>, promise to implement all the methods required by <code>Trait</code>.” The actual fulfillment code is in <code>tokio_process.rs</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ProcessSpawner for TokioProcessSpawner {
+    type Process = TokioManagedProcess;
+
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt; {
+        // ... the concrete logic that actually launches a child process ...
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>This is saying: “the type <code>TokioProcessSpawner</code> officially applies for the <code>ProcessSpawner</code> position,” and provides a concrete implementation of the <code>spawn</code> method. Once fulfilled, you can call <code>.spawn(...)</code> on a <code>TokioProcessSpawner</code> — because the compiler sees this <code>impl</code> and knows it truly has that method.</p>
+<p>Fulfilling <code>ManagedProcess</code> follows the same pattern:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ManagedProcess for TokioManagedProcess {
+    type Stdin = ChildStdin;
+    type Stdout = ChildStdout;
+    type Stderr = ChildStderr;
+
+    fn id(&amp;self) -&gt; Option&lt;u32&gt; { ... }
+    fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt; { ... }
+    // ... the remaining methods ...
+}
+<span class="boring">}</span></code></pre>
+<p>Here, each line <code>type Stdin = ChildStdin;</code> is “filling in a blank” — the blank being the <strong>associated type</strong> left open in the trait. Which brings us to the next concept.</p>
+<h2 id="4-associated-types-type-process-leaves-a-blank"><a class="header" href="#4-associated-types-type-process-leaves-a-blank">4. Associated types: <code>type Process</code> leaves a “blank”</a></h2>
+<p>Look again at this line in the trait definition:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait ProcessSpawner {
+    type Process: ManagedProcess;
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+}
+<span class="boring">}</span></code></pre>
+<p><code>type Process;</code> is called an <strong>associated type</strong>. It is a “blank” that the trait leaves for the implementor — a placeholder type, to be filled in by each concrete implementation. <code>ProcessSpawner</code> is saying here: “I only care that after spawning you return ‘some process handle type’; which specific handle type, that is up to you.” In the previous section, <code>type Process = TokioManagedProcess;</code> is <code>TokioProcessSpawner</code> filling that blank with <code>TokioManagedProcess</code>.</p>
+<p>So what is <code>Self::Process</code>? Remember Post 02 where we said <code>Self</code> is “this current type”? <code>Self::Process</code> is “my own associated type <code>Process</code>.” So <code>fn spawn(...) -&gt; io::Result&lt;Self::Process&gt;</code> has a return type of “the kind of process handle that I myself define” — for <code>TokioProcessSpawner</code>, that is <code>TokioManagedProcess</code>.</p>
+<p>The colon <code>: ManagedProcess</code> after <code>type Process</code> is a <strong>bound</strong> — it demands: “the <code>Process</code> type you fill in must itself also implement the <code>ManagedProcess</code> trait.” In other words, the handle returned by the spawner must be a genuine <code>ManagedProcess</code>. We will go into bounds in more detail shortly.</p>
+<p>Why use an associated type rather than making <code>Process</code> a generic parameter on the trait (like <code>ProcessSpawner&lt;P&gt;</code>)? The distinction in one sentence: <strong>an associated type means “each implementation has exactly one choice”</strong> — one spawner corresponds to exactly one handle type, filled once and fixed. Generics, by contrast, allow the same type to be implemented repeatedly with different type parameters. Here, the “one spawner, one kind of handle” relationship is best expressed with an associated type; the more nuanced comparison with generics is left for a future post on generics.</p>
+<p><code>ManagedProcess</code>’s <code>type Stdin</code>, <code>type Stdout</code>, <code>type Stderr</code> are also associated types, respectively meaning “what concrete type are the three pipes this handle exposes to the outside” — <code>TokioManagedProcess</code> fills them in as tokio’s <code>ChildStdin</code> / <code>ChildStdout</code> / <code>ChildStderr</code>. The <code>take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;</code> we saw in Post 04 returns “my own kind of pipe,” possibly <code>Some</code> (not yet taken) or <code>None</code> (already taken).</p>
+<h2 id="5-result-turning-might-fail-into-a-type-as-well"><a class="header" href="#5-result-turning-might-fail-into-a-type-as-well">5. Result: turning “might fail” into a type as well</a></h2>
+<p>The <code>io::Result&lt;...&gt;</code> that appears repeatedly in the definitions deserves a formal introduction too. I mentioned <code>Result</code> briefly when talking about the <code>?</code> operator in Post 04; now let us make it clear.</p>
+<p><code>Result</code> is also a standard library enum, looking extremely similar to <code>Option</code>, except the “no value” branch carries an extra <strong>error reason</strong>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum Result&lt;T, E&gt; {
+    Ok(T),    // success, carrying a value T
+    Err(E),   // failure, carrying an error E
+}
+<span class="boring">}</span></code></pre>
+<p>Compare: <code>Option&lt;T&gt;</code> is “present / absent,” while <code>Result&lt;T, E&gt;</code> is “success / failure, and on failure it tells you why.” <code>io::Result&lt;T&gt;</code> is a <strong>type alias</strong> for <code>Result&lt;T, io::Error&gt;</code> — a shorthand convenient to write, specifically for “IO operations that might fail.”</p>
+<p>Behind this lies a fundamental choice of Rust: <strong>Rust has no exceptions.</strong> In Java/Python, a function can “return normally” or “throw an exception” — and what exceptions it might throw cannot be seen from the function signature; you have to dig through docs or source. Rust writes “might fail” directly into the return type: <code>fn spawn(...) -&gt; io::Result&lt;Self::Process&gt;</code> tells you plainly — “I might successfully spawn and return a handle; or I might fail and return an error.” Failure is an <strong>ordinary value</strong>, must be handled, and cannot be escaped.</p>
+<p>The tools for handling <code>Result</code> are almost identical to those for <code>Option</code>: <code>match</code> handles both branches; <code>?</code> on <code>Err</code> returns early, on <code>Ok</code> extracts the value and continues. The <code>?</code> we met in Post 04, when used on <code>Result</code>, means “propagate the error to the caller.”</p>
+<blockquote>
+<p>As with handling <code>Option</code>: <code>Result</code> has <code>.unwrap()</code> / <code>.expect()</code>, which likewise panic on <code>Err</code>. In production code, prefer <code>match</code> or <code>?</code> to properly handle errors rather than gambling that “this should not fail.”</p>
+</blockquote>
+<p>One detail worth discussing: <code>try_wait</code>’s return type is <code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code> — a <code>Result</code> wrapping an <code>Option</code>. This is not to be scary, but because two kinds of “uncertainty” are stacked: the outer <code>Result</code> means “the query itself might fail” (e.g. a system call error), the inner <code>Option</code> means “the query succeeded, but the process might not have exited yet.” <strong>“Error” and “not exited” are two different things</strong>, so they are expressed with two layers. Being able to read this kind of nesting means you have already gotten comfortable with both <code>Result</code> and <code>Option</code>.</p>
+<h2 id="6-trait-bounds-what-the-colons-and-plus-signs-are-saying"><a class="header" href="#6-trait-bounds-what-the-colons-and-plus-signs-are-saying">6. Trait bounds: what the colons and plus signs are saying</a></h2>
+<p>Finally, let us unpack those intimidating <code>:</code> and <code>+</code>. Take this line as an example:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>type Stdin: AsyncWrite + Unpin + Send + 'static;
+<span class="boring">}</span></code></pre>
+<p>The <code>AsyncWrite + Unpin + Send + 'static</code> after <code>type Stdin</code> is a chain of <strong>bounds</strong>. The colon reads as “must satisfy,” and <code>+</code> reads as “and.” The whole line means: “the <code>Stdin</code> type you fill in must simultaneously satisfy: implement <code>AsyncWrite</code>, implement <code>Unpin</code>, implement <code>Send</code>, and be <code>'static</code>.” Miss one, and the compiler rejects your <code>impl</code>.</p>
+<p>The colon in the earlier section <code>type Process: ManagedProcess;</code> is the same kind of bound — it just requires only one trait. Bounds allow traits to <strong>combine</strong> with each other: one trait can require “my associated types must themselves satisfy some other traits.”</p>
+<h2 id="7-the-async-boundary-a-preview-saved-for-later-discussion"><a class="header" href="#7-the-async-boundary-a-preview-saved-for-later-discussion">7. The async boundary: a preview (saved for later discussion)</a></h2>
+<p>So what are <code>AsyncWrite</code>, <code>Unpin</code>, <code>Send</code>, <code>'static</code>, and the <code>impl Future&lt;...&gt;</code> in the method return types? They are all related to <strong>async and concurrency</strong>. I will not expand on them in this post (that is a whole block of content for later), but let me give you a rough orientation so you know what each is responsible for:</p>
 <ul>
-<li><code>mod spec;</code> — this line says: “I have a drawer here called <code>spec</code>.” Rust will automatically look for the file <code>spec.rs</code> and treat it as the contents of the <code>spec</code> drawer. So you do <strong>not</strong> need to “register” <code>spec.rs</code> anywhere else — the line <code>mod spec;</code> is the registration. The next two lines work the same way, corresponding to <code>tokio_process.rs</code> and <code>traits.rs</code> respectively.</li>
-<li><code>pub use spec::{ProcessSpec, ProcessStdio};</code> — “take <code>ProcessSpec</code> and <code>ProcessStdio</code> from the <code>spec</code> drawer, set them out at the front door, and allow people outside to see them.” Here <code>use</code> does the “take it out and set it down,” and <code>pub</code> does the “allow others to see.” Without <code>pub</code>, the items are set out but the door stays shut — people outside still cannot reach them.</li>
-</ul>
-<p>💡 Look back at the “storefront” list from the first section — <code>ProcessSpec</code>, <code>ProcessStdio</code>, <code>ProcessSpawner</code>, <code>ManagedProcess</code>, <code>TokioProcessSpawner</code>, <code>TokioManagedProcess</code>. They are exactly the six names set out at the front door here through <code>pub use</code>. Section matches section, perfectly. Anything beyond these six names (for example, the <code>run_process_lifecycle</code> inside <code>tokio_process.rs</code>) stays shut away in its drawer — invisible and untouchable from the outside. That is precisely the effect modularity is after.</p>
-<h2 id="cargotoml-the-packing-slip-for-this-crate"><a class="header" href="#cargotoml-the-packing-slip-for-this-crate">Cargo.toml: the “packing slip” for this crate</a></h2>
-<p>The crate is built, but on the outside you still need to stick on a label that states clearly: what is this crate called, what version is it, and which other crates does it need to work with. This label is the <strong><code>Cargo.toml</code></strong> file.</p>
-<p>And <strong>the tool that ships, manages, and moves these crates around</strong> is called <strong>Cargo</strong> — it is simultaneously your <strong>compiler dispatcher</strong> and your <strong>package manager</strong>: you just declare in <code>Cargo.toml</code> “I need the <code>tokio</code> crate,” and Cargo automatically downloads, compiles, and assembles it for you. If you have written Node, you can think of Cargo as <code>npm</code> plus a build tool combined, and <code>Cargo.toml</code> as its corresponding <code>package.json</code>.</p>
-<p>Let us look at this crate’s real <code>Cargo.toml</code>:</p>
-<pre><code class="language-toml">[package]
-name = "process"
-version = "0.1.0"
-edition = "2024"
-
-[lib]
-name = "process"
-path = "src/lib.rs"
-
-[dependencies]
-tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync"] }
-
-[dev-dependencies]
-pretty_assertions = { version = "1" }
-tempfile = { version = "3" }
-tokio = { version = "1", features = ["io-util", "macros", "process", "rt-multi-thread", "time"] }
-</code></pre>
-<p>Taking it apart section by section:</p>
-<ul>
-<li><strong><code>[package]</code></strong>: the “ID card” for this crate. <code>name = "process"</code> is its name, what others use when they reference it; <code>version = "0.1.0"</code> is the version number; <code>edition = "2024"</code> is the <strong>Rust edition</strong> it uses — you can think of this as “a version profile of the Rust language.” Every few years Rust gathers up a batch of new habits and new rules and bundles them into an edition; <code>2024</code> is the latest profile at the time of writing. Note that an edition is <strong>not the same as</strong> the compiler version — it is more like a set of “default switches”: the same compiler, given a different edition, turns on a different set of language rules.</li>
-<li><strong><code>[lib]</code></strong>: this tells Cargo explicitly “this is a library crate, and its front door is at <code>src/lib.rs</code>.” In fact, even without this section, Cargo looks for <code>src/lib.rs</code> by default; writing it out here is just for clarity. If you were making a binary crate, the corresponding entry would be <code>src/main.rs</code>, and that section would usually be written as <code>[bin]</code>, or simply omitted (defaulting to <code>src/main.rs</code>).</li>
-<li><strong><code>[dependencies]</code></strong>: the other crates that this crate depends on to <strong>run normally</strong>. Only one is listed here, <code>tokio</code>; the string in <code>features</code> means “I only turn on these few feature modules of tokio” — tokio is large, and selecting on demand saves a fair amount of compile time and binary size.</li>
-<li><strong><code>[dev-dependencies]</code></strong>: crates needed only when <strong>writing tests and examples</strong>; they do not count toward the dependencies you publish to others. Note that <code>tokio</code> shows up here again, with <code>rt-multi-thread</code> and <code>time</code> added to its <code>features</code> — because the tests need a multi-threaded runtime and timing functionality, which the actual library does not use.</li>
+<li><strong><code>AsyncRead</code> / <code>AsyncWrite</code></strong>: async I/O traits provided by tokio — types that have them can <strong>asynchronously</strong> read or write (without blocking the entire thread waiting for data). The three pipes must satisfy them.</li>
+<li><strong><code>Send</code></strong>: a “thread safety” marker — types satisfying <code>Send</code> can safely be <strong>moved from one thread to another</strong>. Remember data races from Post 03? <code>Send</code> is exactly one of the ways Rust manages thread safety at the type level.</li>
+<li><strong><code>Unpin</code></strong>: a detail related to “pinning” in async; skip it for now.</li>
+<li><strong><code>'static</code></strong>: this is a <strong>lifetime</strong> — we planted this seed in Post 04. <code>'static</code> means “this type does not borrow any short-lived data” and can live until the program ends. This is the first concrete lifetime you have met; the full lifetime rules we will cover separately.</li>
+<li><strong><code>impl Future&lt;Output = ...&gt;</code></strong>: <code>impl Trait</code> in return position, meaning “returns some type that implements <code>Future</code>”; <code>Output = ...</code> specifies what this future ultimately produces. <code>wait</code> and <code>kill</code> return <code>Future</code> because “waiting for exit” and “terminating a process” are operations that may take time, best expressed as an async future. The full <code>async</code>/<code>await</code> story is left for the async post.</li>
 </ul>
 <blockquote>
-<p>By the way: there is also a <code>Cargo.lock</code> in the directory. It is <strong>not</strong> something you write by hand — it is a “dependency version lock list” that Cargo generates automatically, recording the exact version each dependency ended up using. Library crates usually put it in <code>.gitignore</code> and leave locking to the consumer; binary crates generally commit it, so that everyone builds the same versions.</p>
+<p>So when reading that big block of bounds in <code>ManagedProcess</code>, you can temporarily understand the whole thing as one sentence: <strong>“These three pipe types, and this handle itself, must be async-friendly and thread-safe.”</strong> As for the precise meaning of each term, we will cash them in one by one when we reach the async post.</p>
 </blockquote>
-<h2 id="the-two-pitfalls-beginners-hit-most-easily"><a class="header" href="#the-two-pitfalls-beginners-hit-most-easily">The two pitfalls beginners hit most easily</a></h2>
-<ol>
-<li>
-<p><strong>“Why can’t the outside find what I wrote?” — most likely you forgot <code>pub</code>.</strong>
-Rust’s default temperament is “door shut”: anything inside a drawer, unless you actively <code>pub</code> it, is invisible from the outside. You clearly wrote <code>ProcessSpec</code> in <code>spec.rs</code>, but as long as <code>lib.rs</code> does not have a <code>pub use</code> to bring it to the front door, anyone referencing <code>process::ProcessSpec</code> will be told “no such thing.” Remember this rule: <strong>written in a file ≠ visible to the outside.</strong></p>
-</li>
-<li>
-<p><strong>“Where did I register <code>spec.rs</code>?” — it is that one line, <code>mod spec;</code>.</strong>
-People coming from Python / JS often go looking for an “import the file” action, only to find that Rust seems to “use it without importing.” In truth, the <code>mod spec;</code> line in <code>src/lib.rs</code> is the all-in-one import-and-register line; and Rust looks for the corresponding file by name (<code>spec</code> → <code>spec.rs</code>). One more note: Rust also has an older module-file style, <code>spec/mod.rs</code>; the recommended style nowadays is <code>spec.rs</code> — which is exactly the new style you see in this project.</p>
-</li>
-</ol>
-<h2 id="recap"><a class="header" href="#recap">Recap</a></h2>
+<h2 id="8-recap"><a class="header" href="#8-recap">8. Recap</a></h2>
 <ul>
-<li>A <strong>crate</strong> is the largest unit of organization in Rust, like a sealed <strong>wooden crate</strong>, ultimately compiled into one finished product: either a library (front door <code>lib.rs</code>) or an executable program (entry <code>main.rs</code>). <code>process</code> is a <strong>library crate</strong>.</li>
-<li><strong><code>mod</code></strong> divides the inside of the crate into “drawers” (modules), where the file name is the module name; <strong><code>use</code></strong> brings a name out of a drawer to be used, and <code>pub</code> decides whether it can be seen from the outside.</li>
-<li>The few lines of <code>mod ...;</code> + <code>pub use ...;</code> in <code>src/lib.rs</code> are exactly what place the six “storefront” names from the first section at the front door.</li>
-<li><strong><code>Cargo.toml</code></strong> is the crate’s packing slip: <code>[package]</code> is the ID card (name, version, edition), <code>[lib]</code> points to the front door, <code>[dependencies]</code> is the real dependencies, and <code>[dev-dependencies]</code> is the dependencies needed only for tests.</li>
-<li><strong>Cargo</strong> is the tool that ships, downloads, and compiles these crates; <code>Cargo.lock</code> is the version lock list it generates automatically — you do not write it by hand.</li>
+<li><strong>trait</strong> is Rust’s “capability contract,” similar to Java/Go’s interface. It lists only method signatures (may have no body), stipulating “what methods must exist,” not “how to implement them.” The <code>Debug</code>/<code>Clone</code>/<code>Copy</code> names inside <code>#[derive(...)]</code> are all traits.</li>
+<li>The syntax for implementing a trait is <strong><code>impl Trait for Type { ... }</code></strong>; once fulfilled, the type gains the methods the trait promises. <code>TokioProcessSpawner</code> implements <code>ProcessSpawner</code>; <code>TokioManagedProcess</code> implements <code>ManagedProcess</code>.</li>
+<li><strong>Associated types (<code>type T;</code>)</strong> are placeholder types a trait leaves for implementors to fill; reference them with <strong><code>Self::T</code></strong>. The colon in <code>type Process: ManagedProcess;</code> is a <strong>bound</strong>, demanding that the filled-in type must also implement <code>ManagedProcess</code>.</li>
+<li><strong><code>Result&lt;T, E&gt;</code></strong> (<code>Ok(T)</code> / <code>Err(E)</code>) is the “success or failure” enum, carrying one more piece of information than <code>Option</code> — the error reason. <code>io::Result&lt;T&gt;</code> is a type alias for it. Rust has no exceptions; failure is a value written into the return type that must be handled. Handling tools are consistent with <code>Option</code> (<code>match</code>, <code>?</code>, <code>unwrap</code>, etc.). <code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code> shows “two layers of uncertainty” stacked.</li>
+<li><strong>Bounds</strong> are introduced with <code>:</code> and combined with <code>+</code>, requiring a type to satisfy multiple traits. <code>Send</code> (thread safety), <code>AsyncRead/Write</code> (async I/O), <code>'static</code> (lifetime) are all bounds related to async and concurrency — collectively deferred to the async post.</li>
 </ul>
-<p>In the next post, we will actually step inside <code>spec.rs</code> and see how the “spec list” that <code>ProcessSpec</code> represents is put together piece by piece — and along the way we will run into a few concepts in Rust that are very important and very counter-intuitive. The first read may make you frown, and that is fine; we will take them apart step by step when we get there.</p>
+<p>In the next post, we will finally tackle head-on the ownership, borrowing, and lifetimes that we have been building toward since Post 03 — they are the real mechanism behind the borrow checker, and the prerequisite for understanding the <code>Arc</code>, <code>Mutex</code>, and channel passing that appear later in <code>tokio_process.rs</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="00-preface.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="04-option-pathbuf-borrow.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="02-enum-derive-self-match.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="06-ownership-borrow-lifetime.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -304,11 +331,11 @@ People coming from Python / JS often go looking for an “import the file” act
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="00-preface.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="04-option-pathbuf-borrow.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="02-enum-derive-self-match.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="06-ownership-borrow-lifetime.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

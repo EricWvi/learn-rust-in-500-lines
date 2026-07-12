@@ -1,9 +1,9 @@
 <!DOCTYPE HTML>
-<html lang="en" class="light sidebar-visible" dir="ltr">
+<html lang="zh-CN" class="light sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Preface - Learn Rust in 500 Lines</title>
+        <title>Option、PathBuf 与更进一步的借用 - 500 行代码学会 Rust</title>
 
 
         <!-- Custom HTML head -->
@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
+            window.path_to_searchindex_js = "searchindex-8895d574.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-6e48d295.js"></script>
+        <script src="toc-ea239a89.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -139,7 +139,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">Learn Rust in 500 Lines</h1>
+                    <h1 class="menu-title">500 行代码学会 Rust</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -179,52 +179,137 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="post-00-before-we-begin--why-500-lines"><a class="header" href="#post-00-before-we-begin--why-500-lines">Post 00: Before We Begin — Why “500 Lines”</a></h1>
-<h2 id="this-series-takes-a-third-path"><a class="header" href="#this-series-takes-a-third-path">This series takes a third path</a></h2>
-<p>You have probably seen two kinds of Rust tutorials. One starts with <code>fn main()</code> and <code>println!</code>, teaching the syntax through disconnected snippets — when you finish, you remember a pile of fragments but have no idea how to assemble them into a real project. The other throws a codebase of tens of thousands of lines at you and says “read the source” — except you cannot even find the entrance.</p>
-<p>This series takes a third path: <strong>we read exactly one project — real, complete, but only about 500 lines long — from its first line to its last.</strong> The concepts in Rust that give people the most headaches — ownership, lifetimes, <code>trait</code>, async, channels — do not appear out of thin air to scare you. Each one shows up in these 500 lines <strong>to solve a specific problem</strong>, and we meet each one right at the scene of that problem.</p>
-<h2 id="where-the-500-lines-comes-from"><a class="header" href="#where-the-500-lines-comes-from">Where the “500 lines” comes from</a></h2>
-<p>First, where the number comes from. The project the whole series is built around is a small crate called <code>process</code> in the <code>code/</code> directory — its job is to “help you spawn and manage child processes.” Excluding tests, its core source totals <strong>512 lines</strong>:</p>
+                        <h1 id="第-04-篇optionpathbuf-与更进一步的借用"><a class="header" href="#第-04-篇optionpathbuf-与更进一步的借用">第 04 篇：Option、PathBuf 与更进一步的借用</a></h1>
+<h2 id="一一个字段里藏着的两个新面孔"><a class="header" href="#一一个字段里藏着的两个新面孔">一、一个字段里藏着的两个新面孔</a></h2>
+<p>上一篇扫 <code>ProcessSpec</code> 的字段时，我对 <code>cwd</code> 这一行刻意只字未提：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>cwd: Option&lt;PathBuf&gt;,
+<span class="boring">}</span></code></pre>
+<p>它表示“子进程的工作目录“。但你看它的类型——短短一行同时塞进了两个我们还没正式认识的东西：<code>Option</code> 和 <code>PathBuf</code>。更有意思的是，访问它的那个方法签名长这样：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; {
+    self.cwd.as_deref()
+}
+<span class="boring">}</span></code></pre>
+<p>字段里明明是 <code>Option&lt;PathBuf&gt;</code>，方法返回的却变成了 <code>Option&lt;&amp;Path&gt;</code>——<code>PathBuf</code> 不知怎么变成了 <code>&amp;Path</code>。这一连串符号各自在说什么？我们先从最关键、也最值得单独认识的概念开始：<code>Option</code>。</p>
+<h2 id="二option用一个类型把可能没有说清楚"><a class="header" href="#二option用一个类型把可能没有说清楚">二、Option：用一个类型把“可能没有“说清楚</a></h2>
+<h3 id="它是什么"><a class="header" href="#它是什么">它是什么</a></h3>
+<p><code>Option&lt;T&gt;</code> 是标准库提供的一个<strong>枚举</strong>——对，就是第二篇讲过的那种 enum，只不过它是标准库预先帮你定义好的。它只有两个变体：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum Option&lt;T&gt; {
+    Some(T),   // 有一个值，类型是 T
+    None,      // 没有
+}
+<span class="boring">}</span></code></pre>
+<p>意思是：一个 <code>Option&lt;T&gt;</code> 类型的值，要么是 <code>Some(里面装着一个 T)</code>，要么干脆就是 <code>None</code>（什么都没有）。比如 <code>cwd: Option&lt;PathBuf&gt;</code>——工作目录要么设了（<code>Some(某个路径)</code>），要么没设（<code>None</code>）。再比如 <code>traits.rs</code> 里 <code>id(&amp;self) -&gt; Option&lt;u32&gt;</code>——一个进程的 PID 要么能拿到（<code>Some(123)</code>），要么拿不到（<code>None</code>）。</p>
+<p><code>Option&lt;T&gt;</code> 里的那个 <code>&lt;T&gt;</code>，是上一篇讲过的<strong>泛型</strong>：<code>Option</code> 不限定装什么类型，由你指定——<code>Option&lt;u32&gt;</code>、<code>Option&lt;PathBuf&gt;</code>、<code>Option&lt;String&gt;</code>，随你。</p>
+<h3 id="为什么-rust-要专门发明它"><a class="header" href="#为什么-rust-要专门发明它">为什么 Rust 要专门发明它</a></h3>
+<p>写过 Python、JS、Java 或 Go 的人，对“没有“这件事太熟悉了：Python 的 <code>None</code>、JS 的 <code>null</code> / <code>undefined</code>、Java 的 <code>null</code>、Go 的 <code>nil</code>。它们都有一个共同的毛病——<strong>任何变量，不管类型怎么声明，都可能突然是“空“的</strong>。你拿到一个 <code>User</code> 对象，调用 <code>user.name</code>，结果 <code>user</code> 其实是 <code>null</code>，程序当场崩给你看（Java 的 <code>NullPointerException</code>、Python 的 <code>'NoneType' object has no attribute</code>）。业界把“空引用“戏称为“十亿美元的错误“——因为它造成的崩溃和 bug，损失加起来恐怕远不止这个数。</p>
+<p>Rust 干脆<strong>没有 null</strong>。在 Rust 里，“可能没有“必须用 <code>Option</code> 明确写出来，而且——这是关键——<strong>类型系统会逼着你在用之前，先把“没有“的情况处理掉</strong>。一个 <code>Option&lt;PathBuf&gt;</code>，你没法直接当 <code>PathBuf</code> 用；编译器会拦住你，要求你先确认它到底是 <code>Some</code> 还是 <code>None</code>。于是“忘了判空导致的崩溃“这一整类问题，在 Rust 里基本不存在了。</p>
+<h3 id="怎么用它"><a class="header" href="#怎么用它">怎么用它</a></h3>
+<p><code>Option</code> 有一套配套的工具，挑最常用的几个认识一下。</p>
+<p><strong>最完整的写法是 <code>match</code></strong>（第二篇的老朋友），它强迫你两个分支都想清楚：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let msg = match spec.cwd_path() {
+    Some(path) =&gt; format!("工作目录是 {}", path.display()),
+    None        =&gt; "没设工作目录".to_string(),
+};
+<span class="boring">}</span></code></pre>
+<p><strong>如果你只关心“有“的情况</strong>，写 <code>if let</code> 更省事——它是 <code>match</code> 的精简版，只在匹配到某个模式时才执行：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(cwd) = spec.cwd_path() {
+    command.current_dir(cwd);   // 只有真有路径时，才去设置
+}
+<span class="boring">}</span></code></pre>
+<p>这段不是杜撰——<code>tokio_process.rs</code> 里真正启动子进程的代码，处理工作目录时写的正是这几行。<code>if let Some(cwd)</code> 把“如果有，就把它解出来叫 <code>cwd</code>“一气呵成；<code>None</code> 时整段直接跳过。</p>
+<p><strong>如果你想把“没有“的责任交给上层</strong>，用 <code>?</code> 操作符：它遇到 <code>None</code> 就立刻从当前函数返回 <code>None</code>，遇到 <code>Some(x)</code> 就把 <code>x</code> 取出来继续往下走。（<code>?</code> 同样能用在处理错误的 <code>Result</code> 类型上，那个我们以后讲错误处理时再细说。）</p>
+<p><strong>如果你想问一个是非题</strong>，用 <code>is_some()</code> / <code>is_none()</code>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if spec.cwd_path().is_none() { /* 没设工作目录 */ }
+<span class="boring">}</span></code></pre>
+<p><strong>如果你有十足的把握“这里一定是 Some“</strong>，用 <code>unwrap()</code> 或 <code>expect("说明")</code> 直接把里面的值拽出来：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let path = spec.cwd_path().unwrap();   // 是 None 的话，程序会 panic
+<span class="boring">}</span></code></pre>
+<blockquote>
+<p>⚠️ <code>unwrap</code> 是个需要警惕的工具：遇到 <code>None</code> 它会让程序 <strong>panic</strong>（直接崩溃退出）。写示例、写测试时随手用没问题；但在正式代码里，最好用 <code>match</code> / <code>if let</code> / <code>?</code> 把“没有“的情况老老实实处理掉，而不是赌它“应该不会是 None“。</p>
+</blockquote>
+<p>还有 <code>unwrap_or(默认值)</code>（没有就给个兜底）、<code>map(函数)</code>（对里面的值做变换，是 <code>None</code> 就保持 <code>None</code>）等“组合子“方法，这里先做个了解，用到时再展开。</p>
+<h3 id="一个把-option-用得淋漓尽致的例子take"><a class="header" href="#一个把-option-用得淋漓尽致的例子take">一个把 Option 用得淋漓尽致的例子：take</a></h3>
+<p><code>Option</code> 还有一个特别能体现它设计巧思的用法，就在 <code>traits.rs</code> 里。看 <code>ManagedProcess</code> 这几个方法：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn take_stdin(&amp;mut self)  -&gt; Option&lt;Self::Stdin&gt;;
+fn take_stdout(&amp;mut self) -&gt; Option&lt;Self::Stdout&gt;;
+fn take_stderr(&amp;mut self) -&gt; Option&lt;Self::Stderr&gt;;
+<span class="boring">}</span></code></pre>
+<p>子进程的三条管道，可以“取走“。第一次取，拿到 <code>Some(管道)</code>；再取一次，同一个槽位已经被掏空了，就变成 <code>None</code>。<strong>“这里曾经有东西，但被拿走了，现在空了”——这件事，恰好就是 <code>Option</code> 天生擅长表达的。</strong> 取走这个动作，对应的正是 <code>Option</code> 的 <code>.take()</code> 方法：它把 <code>Some(x)</code> 变成 <code>None</code>，同时把那个 <code>x</code> 还给你：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut pipe: Option&lt;String&gt; = Some("stdout 管道".to_string());
+let got = pipe.take();          // 拿走：got = Some("stdout 管道")
+// 现在 pipe 是 None 了，再取一次只会拿到 None
+<span class="boring">}</span></code></pre>
+<p>用别的语言，你得靠“设成 null 之后每次都记得检查“来模拟这种“取走即空“的语义；而 Rust 用一个类型就把它表达得清清楚楚，并且让编译器盯着你每次使用前都先判断。</p>
+<h2 id="三pathbuf为路径量身定做的字符串"><a class="header" href="#三pathbuf为路径量身定做的字符串">三、PathBuf：为“路径“量身定做的字符串</a></h2>
+<p>说回那个 <code>cwd</code> 字段的另一半：<code>PathBuf</code>。</p>
+<p>你可能已经注意到，Rust 里“字符串“成对出现：拥有所有权的 <code>String</code>，和它的只读切片 <code>str</code>；上一篇认识的 <code>OsString</code> 和 <code>OsStr</code> 也是一对。<code>PathBuf</code> 和 <code>Path</code> 是同一套思路的第三对：</p>
 <ul>
-<li><code>src/lib.rs</code> — 7 lines, the front door of the whole crate;</li>
-<li><code>src/spec.rs</code> — 153 lines, describes “what kind of child process to spawn”;</li>
-<li><code>src/traits.rs</code> — 53 lines, defines the interface contract exposed to the outside;</li>
-<li><code>src/tokio_process.rs</code> — 299 lines, the implementation that actually does the work.</li>
+<li><strong><code>PathBuf</code>（path buffer）</strong> 是<strong>拥有所有权、可增长</strong>的路径，类比 <code>String</code> / <code>OsString</code>。你可以往里拼接：<code>PathBuf::from("/etc").join("hosts")</code> 会得到一个新的 <code>PathBuf</code>，内容是 <code>/etc/hosts</code>。</li>
+<li><strong><code>Path</code></strong> 是<strong>只读的路径切片</strong>，类比 <code>str</code> / <code>OsStr</code>，通常以借用形式 <code>&amp;Path</code> 出现。</li>
 </ul>
-<p>512, roughly 500 — that is where the series gets its name.</p>
-<p>Why pick this size in particular? Because it lands on a sweet spot:</p>
+<p>为什么要专门为“路径“做一个类型，而不直接用字符串？两个原因。一是<strong>跨平台</strong>：Windows 用 <code>\</code> 当分隔符，Unix 用 <code>/</code>，<code>PathBuf::join</code> 会自动按当前系统来拼接，你不用自己操心。二是<strong>路径也不保证是合法 UTF-8</strong>——<code>PathBuf</code> 底层就建立在 <code>OsStr</code> 之上，所以文件系统里那些奇奇怪怪的名字它都能装。</p>
+<p>所以 <code>cwd: Option&lt;PathBuf&gt;</code> 合起来的意思就很顺：一个<strong>可能有、也可能没有</strong>的、<strong>可拼接的跨平台工作目录</strong>。</p>
+<h2 id="四把借用再往前推一步为什么-accessor-返回-path"><a class="header" href="#四把借用再往前推一步为什么-accessor-返回-path">四、把借用再往前推一步：为什么 accessor 返回 <code>&amp;Path</code></a></h2>
+<p>现在回到那个让我们起疑的细节：字段是 <code>Option&lt;PathBuf&gt;</code>，访问方法却返回 <code>Option&lt;&amp;Path&gt;</code>。这是为什么？</p>
+<p>先看答案——<code>cwd_path</code> 的函数体只有一行：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; {
+    self.cwd.as_deref()
+}
+<span class="boring">}</span></code></pre>
+<p>关键词是“借用“。上一篇我们认识了 borrow checker 的铁律“共享不可变，可变不共享“，但当时只是听了个规则。现在借这个方法，我们看看借用在真实代码里到底长什么样。</p>
+<p><strong><code>cwd_path</code> 拿的是 <code>&amp;self</code>——整个 <code>ProcessSpec</code> 的只读借用。</strong> 既然只是读，不打算改，它当然没必要把那个 <code>PathBuf</code> 整个复制一份再还给你（复制路径字符串是有开销的）。它直接<strong>借出</strong>一条指向自己内部 <code>cwd</code> 字段的只读引用 <code>&amp;Path</code>，让你顺着这条引用去看那个路径。零拷贝，非常划算。</p>
+<p>这里正好把上一篇的规则落到实处。<code>&amp;self</code> 是一个<strong>只读借用</strong>，而铁律允许“多个只读借用同时存在“。所以下面这种用法在 Rust 里完全没问题——你可以把同一个 <code>spec</code> 的好几个只读访问器一起调用，它们的借用同时活着：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let prog = spec.program();       // 只读借用 1：返回 &amp;OsStr
+let cwd  = spec.cwd_path();     // 只读借用 2：返回 Option&lt;&amp;Path&gt;
+// 两个借用都只是"读"，同时存在，互不冲突
+<span class="boring">}</span></code></pre>
+<p>（换成在中间穿插一次 <code>&amp;mut spec</code> 的修改，borrow checker 才会跳出来拦你——因为那会违反“可变不共享“。）</p>
+<p>那 <code>as_deref()</code> 又干了什么？它负责把 <code>Option&lt;PathBuf&gt;</code> 变成 <code>Option&lt;&amp;Path&gt;</code>。<code>deref</code> 是“解引用“的意思，这里的效果是：把拥有所有权的 <code>PathBuf</code> <strong>“降级“成只读的 <code>&amp;Path</code></strong>（因为 <code>PathBuf</code> 实现了一个叫 <code>Deref</code> 的 trait，能把自己当作 <code>Path</code> 来借出）。<code>as_deref</code> 把这个“降级“应用到 <code>Option</code> 内部：<code>Some(路径)</code> 变成 <code>Some(借出的 &amp;Path)</code>，<code>None</code> 还是 <code>None</code>。于是字段里的 <code>Option&lt;PathBuf&gt;</code>，对外就变成了 <code>Option&lt;&amp;Path&gt;</code>。</p>
+<blockquote>
+<p>💡 把这一节和前面 <code>String</code>/<code>str</code>、<code>OsString</code>/<code>OsStr</code>、<code>PathBuf</code>/<code>Path</code> 的回顾连起来，你会发现 Rust 反复出现“一个拥有型 + 一个借用型“的成对类型。这不是巧合，而是借用思想深深刻进类型系统（Type System）的体现：<strong>在 Rust 里，“你是拥有它、还是只是借用它“是类型本身要回答的问题。</strong> borrow checker 之所以能工作，正是因为这些类型把“所有权关系“写在了明面上。</p>
+</blockquote>
+<p>最后埋下一颗种子：<code>cwd_path</code> 返回的那个 <code>&amp;Path</code>，指向的是 <code>spec</code> 内部的内存。也就是说，<strong>它不能比 <code>spec</code> 活得更久</strong>——一旦 <code>spec</code> 被销毁，这条引用就成了悬空指针。Rust 编译器靠一套叫**生命周期（lifetime）<strong>的机制，在编译期就保证引用永远不会“活得比它指的数据还长“。你可能注意到 <code>cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt;</code> 的签名里并没有把生命周期写出来——那是编译器按一套默认规则帮你</strong>省略（elision）**了。生命周期的完整规则又是一块硬骨头，我们留到以后专门讲；今天你只要感受到一件事：<strong>返回的 <code>&amp;Path</code> 和 <code>self</code> 是绑定的，它“借“自 <code>self</code>。</strong></p>
+<h2 id="五小结"><a class="header" href="#五小结">五、小结</a></h2>
 <ul>
-<li><strong>Small enough to hold in your head.</strong> You can read 500 lines end to end and remember what each file is responsible for, without being overwhelmed by scale.</li>
-<li><strong>Big enough to be real.</strong> It is not a toy stitched together only for teaching — it has clear layering (description / interface / implementation), genuinely tricky concurrency problems (waiting at the same time for the child to exit, for a “kill” command, and for a “drop” signal), and the compromises and comments made for the sake of correctness. In other words, <strong>it forces you to grapple with the hard parts of Rust.</strong></li>
+<li><strong><code>Option&lt;T&gt;</code></strong> 是标准库的枚举，两个变体 <code>Some(T)</code> / <code>None</code>，专门表达“可能没有“。Rust <strong>没有 null</strong>，所有“可能为空“的情况都必须用 <code>Option</code> 表示，并由类型系统逼你在使用前处理 <code>None</code>——空指针崩溃这一整类问题因此基本消失。</li>
+<li>处理 <code>Option</code> 的常用工具：<code>match</code>、<code>if let Some(x)</code>、<code>?</code>（向上传递 <code>None</code>）、<code>is_some()</code> / <code>is_none()</code>、<code>unwrap()</code> / <code>expect()</code>（遇 <code>None</code> 会 panic，慎用于正式代码）、<code>unwrap_or</code> / <code>map</code> 等。<code>.take()</code> 配合 <code>Option</code> 还能优雅地表达“取走即空“的语义。</li>
+<li><strong><code>PathBuf</code></strong> 是拥有、可拼接的跨平台路径（类比 <code>String</code>），<strong><code>Path</code></strong> 是它的只读切片（类比 <code>str</code>，常以 <code>&amp;Path</code> 出现）。<code>PathBuf</code> 底层基于 <code>OsStr</code>，不要求合法 UTF-8。</li>
+<li><code>cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt;</code> 返回的是<strong>借用</strong>而非拷贝：<code>&amp;self</code> 是只读借用，多个只读借用可以共存（“共享不可变”）；<code>as_deref()</code> 把 <code>Option&lt;PathBuf&gt;</code> 降级成 <code>Option&lt;&amp;Path&gt;</code>。</li>
+<li>Rust 里“拥有型 + 借用型“成对出现（<code>String</code>/<code>str</code>、<code>OsString</code>/<code>OsStr</code>、<code>PathBuf</code>/<code>Path</code>），是借用思想写在类型系统里的体现。返回的 <code>&amp;Path</code> 与 <code>self</code> <strong>生命周期绑定</strong>——完整规则留待以后介绍。</li>
 </ul>
-<p>In one sentence: 500 lines is small enough to finish, and real enough to be useful once you do.</p>
-<h2 id="you-may-not-even-need-to-open-an-ide"><a class="header" href="#you-may-not-even-need-to-open-an-ide">You may not even need to open an IDE</a></h2>
-<p>The unspoken assumption of many tutorials is “clone the repo, open it in an IDE, and follow along with the source.” This series does not ask you to do that.</p>
-<p>In every article, <strong>the relevant code is pasted into the body verbatim and explained line by line.</strong> You can read on your phone from a couch, on a tablet, or printed on paper — never touching a computer, installing a single tool, or cloning anything — and still follow exactly what each line is doing.</p>
-<p>Of course, if you want to get your hands dirty — this code is real, and it compiles and runs. The <code>code/</code> directory in the repo is the crate itself; run <code>cargo test</code> and every test passes. When a passage makes you curious, you can always open an IDE, change a couple of lines, and see what happens. But that is a <strong>bonus</strong>, not an <strong>entry requirement</strong>.</p>
-<h2 id="from-shallow-to-deep-how-the-path-runs"><a class="header" href="#from-shallow-to-deep-how-the-path-runs">From shallow to deep: how the path runs</a></h2>
-<p>The order of this series is deliberately arranged “outside in, easy to hard.” The rough route looks like this:</p>
-<ol>
-<li><strong>Meet the skeleton first.</strong> What does a Rust project look like? What are <code>crate</code>, <code>lib.rs</code>, <code>mod</code>, and <code>Cargo.toml</code>? We lay the map out first.</li>
-<li><strong>Then read the data.</strong> How is the “spec list” that <code>ProcessSpec</code> represents put together? This is where we meet <code>struct</code>, fields, methods, and Rust’s most distinctive feature — <strong>ownership</strong>.</li>
-<li><strong>Then read the contracts.</strong> How are the two interfaces, <code>ProcessSpawner</code> and <code>ManagedProcess</code>, defined? This is where we meet <code>trait</code> — Rust’s way of expressing a “shared capability.”</li>
-<li><strong>Finally, read the implementation.</strong> In those 299 lines of <code>tokio_process.rs</code>, how do async and channels come together to manage the entire lifecycle of a child process? This is the hardest stretch — but by the time you arrive, you have already built up every prerequisite concept.</li>
-</ol>
-<p>You will notice that each article adds only one more layer on top of the previous one’s foundation. <strong>No article ever uses something it has not yet taught.</strong> That is this series’ promise to you: read it in order, and you will never suddenly run into an unexplained wall.</p>
-<h2 id="how-to-read-effectively"><a class="header" href="#how-to-read-effectively">How to read effectively</a></h2>
-<ul>
-<li><strong>Read in order.</strong> Concepts are layered one on top of the next; skimming ahead makes it easy to lose your footing by the third layer.</li>
-<li><strong>Each term is defined only once.</strong> The first time a term appears, I explain it thoroughly with an everyday analogy and record it in the glossary, <code>terminology.md</code>. From then on I use it freely instead of redefining it. So if a term slips your mind, look it up in that table.</li>
-<li><strong>The code is the main character.</strong> Every article starts from a real piece of code and returns, at the end, to understanding that code. As you read, keep asking yourself: “what problem is this line here to solve?”</li>
-</ul>
-<p>When you are ready, let us begin with Post 01: understanding the skeleton of a Rust project.</p>
+<p>下一篇，我们会离开 <code>spec.rs</code>，走进 <code>traits.rs</code>，看看 <code>ProcessSpawner</code> 和 <code>ManagedProcess</code> 这两个 trait 如何定义出整套启动器与进程把手的“接口约定“。</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="03-mut-processspec-vec.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="01-crate-module-cargo.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="05-trait-associated-type-result.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -234,8 +319,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="03-mut-processspec-vec.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="01-crate-module-cargo.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="05-trait-associated-type-result.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

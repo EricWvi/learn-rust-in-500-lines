@@ -38,10 +38,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-336aa859.js";
+            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-de26c149.js"></script>
+        <script src="toc-6e48d295.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -327,6 +327,895 @@ People coming from Python / JS often go looking for an “import the file” act
 </ul>
 <p>In the next post, we will actually step inside <code>spec.rs</code> and see how the “spec list” that <code>ProcessSpec</code> represents is put together piece by piece — and along the way we will run into a few concepts in Rust that are very important and very counter-intuitive. The first read may make you frown, and that is fine; we will take them apart step by step when we get there.</p>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="post-02-understanding-an-enum-derive-selfself-and-match-rust-is-an-expression-language"><a class="header" href="#post-02-understanding-an-enum-derive-selfself-and-match-rust-is-an-expression-language">Post 02: Understanding an Enum: derive, self/Self, and match (Rust Is an Expression Language)</a></h1>
+<h2 id="1-first-take-a-look-at-this-real-code"><a class="header" href="#1-first-take-a-look-at-this-real-code">1. First, take a look at this real code</a></h2>
+<p>In this post we step into <code>spec.rs</code> to see how the “spec list” called <code>ProcessSpec</code> is put together. But before we tackle <code>ProcessSpec</code>, one small type that appears repeatedly throughout the list — <code>ProcessStdio</code> — is worth an entire post on its own. It is only a dozen or so lines, yet it ties together several of the most critical concepts in Rust.</p>
+<p>Let us pull its definition out as-is:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Stdio policy used when spawning a child process.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ProcessStdio {
+    /// Create an owned async pipe that callers can take from the managed process.
+    #[default]
+    Piped,
+    /// Inherit the corresponding stdio stream from the parent process.
+    Inherit,
+    /// Connect the corresponding stdio stream to the platform null device.
+    Null,
+}
+
+impl ProcessStdio {
+    pub(crate) fn as_stdio(self) -&gt; Stdio {
+        match self {
+            Self::Piped =&gt; Stdio::piped(),
+            Self::Inherit =&gt; Stdio::inherit(),
+            Self::Null =&gt; Stdio::null(),
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>If you are reading Rust for the first time, this code looks dense. A dozen lines crammed with symbols that make you frown:</p>
+<ul>
+<li>The first line <code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code> — this string of capitalized names reads like an incantation. What is each one saying?</li>
+<li>What does <code>#[default]</code> above <code>Piped</code> actually do?</li>
+<li><code>self</code> (lowercase) inside <code>as_stdio(self)</code>, versus <code>Self::Piped</code> (uppercase) inside the function body — they look like the same thing with a shift key. Are they?</li>
+<li>Most confusing of all: <code>as_stdio</code> clearly declares that it returns <code>Stdio</code>, yet there is no <code>return</code> in the body, and the final <code>match</code> block has no semicolon — how does it “return” anything?</li>
+</ul>
+<p>These questions each stand on their own, but their answers converge on a single place: <strong>Rust is a language built around “expressions.”</strong> Let us start by unpacking the most eye-catching piece — that <code>#[derive(...)]</code> line.</p>
+<h2 id="2-enum-and-impl-first-make-out-the-shapes-of-these-two-pieces"><a class="header" href="#2-enum-and-impl-first-make-out-the-shapes-of-these-two-pieces">2. enum and impl: first, make out the shapes of these two pieces</a></h2>
+<p>Before explaining <code>#[derive(...)]</code>, let us quickly get the overall shape of this code clear, so the details that follow have somewhere to land.</p>
+<p><code>enum ProcessStdio { ... }</code> defines an <strong>enum</strong>. Anyone who has written C, Java, or TypeScript will not find it unfamiliar: it is a type whose “value can only be one of a few listed possibilities.” The type <code>ProcessStdio</code> has only three possible values: <code>Piped</code>, <code>Inherit</code>, and <code>Null</code> — meaning, respectively, that a child process’s standard stream is “create a pipe,” “inherit from the parent,” or “connect to the null device.”</p>
+<p>In Rust, each of these “one-of-a-few” possibilities is called a <strong>variant</strong>. Note: “variant,” not “instance.” <code>Piped</code>, <code>Inherit</code>, <code>Null</code> are the three variants of <code>ProcessStdio</code>.</p>
+<p>Below that, <code>impl ProcessStdio { ... }</code> is an <strong>impl block</strong>. Its job: “attach” some functions to the type <code>ProcessStdio</code>. For example, <code>as_stdio</code> is one such attached function — it converts the three stdio policies into the corresponding settings that the standard library’s <code>std::process::Stdio</code> needs.</p>
+<blockquote>
+<p>A small distinction: functions written inside an <code>impl</code> block are collectively called <strong>associated functions</strong>. If the first parameter is <code>self</code> (lowercase), we habitually call it a <strong>method</strong>, invoked with <code>value.method_name()</code>. If the first parameter is not <code>self</code>, it is closer to what other languages call a “static method” or “constructor,” and you call it with <code>TypeName::function_name()</code>. Here, <code>as_stdio(self)</code> is a method.</p>
+</blockquote>
+<p>With the overall shape clear, let us return to that eye-catching <code>#[derive(...)]</code> line.</p>
+<h2 id="3-behind-that-one-derive-line-what-each-of-the-six-names-does"><a class="header" href="#3-behind-that-one-derive-line-what-each-of-the-six-names-does">3. Behind that one derive line: what each of the six names does</a></h2>
+<p><code>#[derive(...)]</code> is a kind of <strong>attribute</strong> — a line of directives wrapped in <code>#[...]</code>, written above a type definition. <code>derive</code> means “to derive”: its job is to ask the compiler to <strong>automatically implement</strong> for this type the set of capabilities listed inside the parentheses. Each name inside (<code>Debug</code>, <code>Clone</code>, …) is a <strong>trait</strong> — you can think of a trait for now as “a capability contract” or “an interface.” So the overall meaning of this line is:</p>
+<blockquote>
+<p>“Compiler, please auto-implement the six capabilities <code>Debug</code>, <code>Clone</code>, <code>Copy</code>, <code>Default</code>, <code>PartialEq</code>, and <code>Eq</code> for <code>ProcessStdio</code>, using the default rules.”</p>
+</blockquote>
+<p>Otherwise, you would have to hand-write a large chunk of code for each of these capabilities. <code>derive</code> saves you all that boilerplate. Let us go through these six capabilities one by one.</p>
+<p><strong><code>Debug</code>:</strong> makes it printable. With <code>Debug</code>, you can print the value for debugging with <code>{:?}</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>println!("{:?}", ProcessStdio::Piped); // prints: Piped
+<span class="boring">}</span></code></pre>
+<p>Without it, <code>println!</code> flatly refuses.</p>
+<p><strong><code>Clone</code>:</strong> makes it explicitly copyable. With <code>Clone</code>, you can call <code>.clone()</code> to make a fresh copy:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = ProcessStdio::Piped;
+let b = a.clone(); // a is still valid; b is a new copy
+<span class="boring">}</span></code></pre>
+<p><strong><code>Copy</code>:</strong> makes it “copy” rather than “move” on assignment. This one deserves a bit more explanation. In Rust, assigning a value to another variable, or passing it into a function, defaults to a <strong>move</strong> — ownership is “relocated” from the original place, and the original name can no longer be used. But if a type implements <code>Copy</code>, assignment quietly <strong>copies</strong> it instead, and the original name remains usable:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = ProcessStdio::Piped;
+let b = a;          // because ProcessStdio is Copy, this copies rather than moves
+let c = a;          // a is still usable — no problem
+<span class="boring">}</span></code></pre>
+<p>As for “why Rust specifically distinguishes between ‘copy’ and ‘move,’ and how this relates to the ownership system” — that is a whole tough subject, and we will devote a dedicated post to it later. For now, just remember the conclusion: small enums like <code>ProcessStdio</code> that carry no data internally are dirt cheap to copy, so adding <code>Copy</code> is both reasonable and common practice.</p>
+<p><strong><code>PartialEq</code>:</strong> makes it comparable with <code>==</code> and <code>!=</code>. With it, two <code>ProcessStdio</code> values can be compared for equality:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if some_stdio == ProcessStdio::Piped { ... }
+<span class="boring">}</span></code></pre>
+<p><strong><code>Eq</code>:</strong> declares that this equality is “total.” <code>PartialEq</code> lets you “do the comparison”; <code>Eq</code> stamps the type with “my equality relation is strictly reflexive, symmetric, and transitive” — which is almost trivially true for enums. Deriving both together is standard practice. Why <code>PartialEq</code> and <code>Eq</code> need to be separate will only make sense when we get to floating-point numbers (<code>f32</code>/<code>f64</code>’s <code>NaN</code> does not satisfy reflexivity, so you cannot derive <code>Eq</code>). For now, treat “<code>PartialEq + Eq</code> = full equality.”</p>
+<p><strong><code>Default</code>:</strong> gives it a “default value.” With it, you can use <code>ProcessStdio::default()</code> to get a default instance. But an enum has several variants — how does the compiler know which one should be the default? That is where that <code>#[default]</code> line above <code>Piped</code> comes in:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[default]
+Piped,
+<span class="boring">}</span></code></pre>
+<p><code>#[default]</code> is a marker that tells the compiler: “when <code>derive(Default)</code>, return this variant.” So:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let d = ProcessStdio::default();
+assert_eq!(d, ProcessStdio::Piped); // holds
+<span class="boring">}</span></code></pre>
+<blockquote>
+<p>If you <code>#[derive(Default)]</code> an enum but forget to mark any variant with <code>#[default]</code>, the compiler will flat-out error. An enum’s <code>Default</code> must explicitly point to one variant — the compiler will not guess.</p>
+</blockquote>
+<p>Stringing the six capabilities and <code>#[default]</code> together: that incantation-like line <code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code> says something perfectly plain: make this enum printable, copyable, copied-on-assignment-not-moved, defaultable, and equality-comparable. Each one is an everyday capability; <code>derive</code> just bundles them up and auto-generates the code.</p>
+<h2 id="4-self-and-self-lowercase-is-the-value-uppercase-is-the-type"><a class="header" href="#4-self-and-self-lowercase-is-the-value-uppercase-is-the-type">4. self and Self: lowercase is “the value,” uppercase is “the type”</a></h2>
+<p>Now back to the method itself. The signature of <code>as_stdio</code> is:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub(crate) fn as_stdio(self) -&gt; Stdio
+<span class="boring">}</span></code></pre>
+<p>Here we have <code>self</code> (lowercase); and inside the function body we see <code>Self</code> (uppercase):</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>match self {
+    Self::Piped =&gt; ...,
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>These two — one capital, one lowercase — are different things.</p>
+<p><strong><code>self</code> (lowercase) is “the value.”</strong> It is the value that the method was called on. When you write <code>my_stdio.as_stdio()</code>, the <code>self</code> inside <code>as_stdio</code> represents that value <code>my_stdio</code>. In other languages, this role is usually called <code>this</code> (Java/C++/C#) or <code>self</code> (Python); Rust just writes it explicitly as the first parameter.</p>
+<p>There are three ways to write <code>self</code> in Rust, and the differences matter enough to learn them all at once:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Form</th><th>Meaning</th><th>Can the original value still be used after the call?</th></tr>
+</thead>
+<tbody>
+<tr><td><code>self</code></td><td>Takes the value directly (moves ownership)</td><td>No, it is consumed</td></tr>
+<tr><td><code>&amp;self</code></td><td>Borrows, read-only without modifying</td><td>Yes, the original is untouched</td></tr>
+<tr><td><code>&amp;mut self</code></td><td>Borrows, can be modified</td><td>Yes, but exclusively during the call</td></tr>
+</tbody>
+</table>
+</div>
+<p>Look back at the code. <code>as_stdio(self)</code> uses the first form, <code>self</code> — it directly takes the value. For a <code>Copy</code> type this does not matter (it will be copied anyway), but semantically it says “I consume this value and use it to compute a result.” In <code>ProcessSpec</code>’s impl block you will see heavy use of the other two:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Inside ProcessSpec's impl block
+pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+
+pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self {
+    self.stdin = stdin;
+    self
+}
+
+pub fn stdin_policy(&amp;self) -&gt; ProcessStdio {
+    self.stdin
+}
+<span class="boring">}</span></code></pre>
+<p><code>stdin(mut self) -&gt; Self</code> takes the old <code>self</code>, modifies it, and returns a new one — this is the very common <strong>builder pattern</strong> in Rust: each configuration method “consumes the old value, returns the new one,” so you can chain them:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let spec = ProcessSpec::new("echo")
+    .arg("hello")
+    .stdin(ProcessStdio::Null)
+    .stdout(ProcessStdio::Piped);
+<span class="boring">}</span></code></pre>
+<p>And <code>stdin_policy(&amp;self)</code> uses <code>&amp;self</code> — it only borrows to read, does not consume <code>spec</code>, so <code>spec</code> survives the call.</p>
+<p><strong><code>Self</code> (uppercase) is “the type.”</strong> It is an alias for “the type of the current <code>impl</code> block.” Inside <code>impl ProcessStdio</code>, <code>Self</code> is equivalent to <code>ProcessStdio</code>. So writing <code>Self::Piped</code> in the function body is exactly the same as writing <code>ProcessStdio::Piped</code> — just shorter, and you do not need to chase down every usage if the type name changes later. Similarly, <code>stdin(...) -&gt; Self</code> means “returns a <code>ProcessSpec</code>,” and <code>new(...) -&gt; Self</code> does too.</p>
+<p>One sentence to remember: <strong><code>self</code> is “this value of mine,” <code>Self</code> is “this type of mine.”</strong></p>
+<h2 id="5-how-does-match-without-a-semicolon-return-a-value"><a class="header" href="#5-how-does-match-without-a-semicolon-return-a-value">5. How does match without a semicolon “return” a value?</a></h2>
+<p>This is the most counter-intuitive, yet most worth-understanding, part of this code. <code>as_stdio</code> declares that it returns <code>Stdio</code>, yet the function body looks like this:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub(crate) fn as_stdio(self) -&gt; Stdio {
+    match self {
+        Self::Piped =&gt; Stdio::piped(),
+        Self::Inherit =&gt; Stdio::inherit(),
+        Self::Null =&gt; Stdio::null(),
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>No <code>return</code>. The final <code>match</code> has no semicolon. How does it become the return value?</p>
+<p>The answer lies in one summary: <strong>Rust is a language built around “expressions.”</strong> In many other languages, <code>match</code>/<code>switch</code> is merely a <strong>statement</strong> — “execute a different branch depending on the situation” — it runs and is done, producing no value. But in Rust, <code>match</code> is an <strong>expression</strong> — it <strong>evaluates to a value</strong>. Each <code>=&gt;</code> right-hand side is an expression, and the <code>match</code> as a whole evaluates to the result of whichever branch is taken.</p>
+<p>Since <code>match</code> is an expression that evaluates, it can serve as the return value of a function all by itself — <strong>as long as it is the last expression in the function body, and there is no semicolon after it.</strong> The Rust rule is: the last expression in a function body (or any code block) automatically becomes the return value of that function (or block). No <code>return</code> needed. So whichever of the three <code>Stdio::piped()</code> etc. gets hit, the <code>match</code> evaluates to the corresponding <code>Stdio</code>, and the entire function returns it.</p>
+<p>This “no semicolon means a value” rule is not limited to <code>match</code>. Once you accept it, many Rust idioms suddenly click:</p>
+<p><strong><code>if</code> is also an expression:</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = if condition { 1 } else { 2 };
+<span class="boring">}</span></code></pre>
+<p>In Rust, <code>if</code> directly produces a value and can be assigned to a variable. This is not possible in Python or Java (where <code>if</code> is a pure statement that produces no value).</p>
+<p><strong>A code block <code>{}</code> is also an expression:</strong> a <code>{}</code> block evaluates to its <strong>last expression without a semicolon</strong>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = {
+    let a = 3;
+    let b = 4;
+    a + b          // note: no semicolon
+};                 // result = 7
+<span class="boring">}</span></code></pre>
+<p>So what exactly does the semicolon do? This is the key: <strong>in Rust, putting a semicolon after an expression turns it into a “statement” — it still executes, but its value is discarded.</strong> You can feel the difference for yourself:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = { 5 };    // the block's last expression is 5 (no semicolon), a = 5
+let b = { 5; };   // the last thing is a "5;" statement, block value discarded, b gets ()
+<span class="boring">}</span></code></pre>
+<p>The <code>()</code> (pronounced “unit,” think “no meaningful value”) on the second line is the price of an extraneous semicolon.</p>
+<p>So you can summarize it with a rule that covers almost everything: <strong>in Rust almost “everything is an expression,” with only two categories of exception — <code>let</code> and other variable declarations (they are statements, producing no value), and any “expression with a semicolon added” (adding a semicolon demotes an expression to a statement; its value is discarded).</strong> Exclude those two, and everything else — <code>if</code>, <code>match</code>, code blocks, function bodies — are expressions that evaluate. That is the real meaning of “Rust is an expression language.”</p>
+<blockquote>
+<p>As an aside: Rust also allows you to explicitly write <code>return value;</code> for early returns, which is especially useful when you need to bail out mid-function. It is just that returning at the end of a function is conventionally expressed as “the last expression without a semicolon” — cleaner.</p>
+</blockquote>
+<h2 id="6-back-to-match-what-makes-pattern-matching-so-powerful"><a class="header" href="#6-back-to-match-what-makes-pattern-matching-so-powerful">6. Back to match: what makes pattern matching so powerful</a></h2>
+<p>Since <code>match</code> is an evaluating expression, let us look back at the “pattern matching” part itself — why do Rust programmers like it so much?</p>
+<p><strong>First, it forces you to “cover all cases.”</strong> Look back at <code>as_stdio</code>’s <code>match</code>: the three variants <code>Piped</code>, <code>Inherit</code>, <code>Null</code> are all listed, not one missed. That is not the author being diligent — it is the compiler <strong>enforcing</strong> it: however many variants an enum has, your <code>match</code> must cover that many. Miss one, and the compiler refuses to compile. This means that if someone later adds a fourth variant to <code>ProcessStdio</code>, every single place that uses <code>match</code> on it will immediately be flagged by the compiler, reminding you to add the new branch — a life-saving capability when maintaining large projects.</p>
+<p>If you genuinely only care about a few cases and want to “batch handle” the rest, use the underscore wildcard <code>_</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>match stdio {
+    ProcessStdio::Piped =&gt; "create a pipe",
+    _ =&gt; "other cases",          // wildcard, catches Inherit and Null
+}
+<span class="boring">}</span></code></pre>
+<p>But using <code>_</code> also gives up the benefit of “remind me when new variants are added,” so in situations like <code>as_stdio</code> where every branch should have different behavior, writing out every variant explicitly is the safe choice.</p>
+<p><strong>Second, it matches more than just enums.</strong> <code>match</code> patterns can be integers, string literals, tuples, structs — and can even destructure and bind inner data while matching. A few examples:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Matching integers
+let label = match exit_code {
+    0 =&gt; "success",
+    _ =&gt; "failure",
+};
+
+// Matching tuples — compares two values at once
+let both = match (a_ready, b_ready) {
+    (true, true) =&gt; "both ready",
+    (false, false) =&gt; "neither ready",
+    _ =&gt; "one ready",
+};
+
+// Matching and destructuring a struct
+struct Point { x: i32, y: i32 }
+match point {
+    Point { x: 0, y } =&gt; println!("on the y-axis, y = {}", y),
+    Point { x, y }    =&gt; println!("ordinary point ({}, {})", x, y),
+}
+
+// With a guard: extra condition after the pattern
+let kind = match n {
+    v if v &lt; 0 =&gt; "negative",
+    0          =&gt; "zero",
+    _          =&gt; "positive",
+};
+<span class="boring">}</span></code></pre>
+<p>Notice in the third example, <code>Point { x: 0, y }</code> — it simultaneously does two things: requires that <code>x</code> exactly equals 0, and <strong>binds</strong> the value of <code>y</code> to a variable of the same name for use inside that branch. <strong>“Judge, destructure, and extract” all written into that single line of pattern</strong> — this is what makes <code>match</code> far more powerful than an ordinary <code>switch</code>.</p>
+<p>Putting it all together: that plain-looking three-branch <code>match</code> in <code>as_stdio</code> actually wields two abilities at once — “exhaustive enum matching” (a correctness guarantee the compiler watches over) and “evaluating to a <code>Stdio</code> value per variant” (the concise return style made possible by an expression language).</p>
+<h2 id="7-recap"><a class="header" href="#7-recap">7. Recap</a></h2>
+<ul>
+<li><code>ProcessStdio</code> is an <strong>enum</strong> with three <strong>variants</strong> <code>Piped</code>/<code>Inherit</code>/<code>Null</code>; the <code>impl</code> block attaches methods to the type, e.g. <code>as_stdio</code>.</li>
+<li><code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code> tells the compiler to auto-implement six capabilities: <code>Debug</code> (printable), <code>Clone</code> (explicitly copyable), <code>Copy</code> (copy on assignment, not move — ownership details deferred), <code>PartialEq + Eq</code> (equality comparable), <code>Default</code> (has a default value). <code>#[default]</code> specifies that <code>Default</code> picks the <code>Piped</code> variant.</li>
+<li><strong><code>self</code> (lowercase) is the value</strong>, the object on which the method was called, with three forms: <code>self</code>/<code>&amp;self</code>/<code>&amp;mut self</code> (consume, read-only borrow, mutable borrow). <strong><code>Self</code> (uppercase) is the type</strong>, an alias for the current <code>impl</code> block’s type.</li>
+<li><code>match</code> without a semicolon becomes the return value because <strong>Rust is an expression language</strong>: <code>match</code>, <code>if</code>, code blocks <code>{}</code>, and function bodies are all <strong>expressions</strong> that evaluate. Only <code>let</code> declarations and <strong>expressions with a semicolon</strong> are <strong>statements</strong>.</li>
+<li><code>match</code>’s power comes from <strong>pattern matching</strong>: the compiler enforces exhaustive coverage, <code>_</code> acts as a wildcard, it matches integers/tuples/structs, can destructure and bind while matching, and supports <code>guard</code> conditions.</li>
+</ul>
+<p>In the next post, we will discuss that little loose end we have been avoiding this whole time — <code>mut</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="post-03-mut-processspec-and-vec-with-tuples"><a class="header" href="#post-03-mut-processspec-and-vec-with-tuples">Post 03: mut, ProcessSpec, and Vec with Tuples</a></h1>
+<h2 id="1-that-mut-we-have-been-skipping-all-along"><a class="header" href="#1-that-mut-we-have-been-skipping-all-along">1. That <code>mut</code> we have been skipping all along</a></h2>
+<p>At the end of the last post I left a loose end: <code>mut</code>. Look back at the <code>ProcessStdio</code> code and you can barely find it — the enum itself is a few read-only values, and <code>as_stdio(self)</code> just “reads” the incoming value and computes a result. But the moment you shift your gaze to <code>ProcessSpec</code>, <code>mut</code> erupts everywhere:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+
+pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self {
+    self.stdin = stdin;
+    self
+}
+
+pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self {
+    self.envs.push((key.into(), value.into()));
+    self
+}
+<span class="boring">}</span></code></pre>
+<p><code>mut self</code>, <code>self.stdin = ...</code>, <code>self.envs.push(...)</code> — these patterns all hint at the same thing: <strong>data here is going to be changed.</strong> So what exactly is <code>mut</code>? What makes it worth its own keyword in Rust? In this post we will first make it clear, then step into the <code>ProcessSpec</code> “spec list” itself — and you will find that <code>mut</code> is exactly the key to understanding how the entire list gets assembled piece by piece.</p>
+<h2 id="2-immutable-by-default-a-safety-net-that-catches-problems-before-they-happen"><a class="header" href="#2-immutable-by-default-a-safety-net-that-catches-problems-before-they-happen">2. Immutable by default: a safety net that catches problems before they happen</a></h2>
+<p>Let us start with the most counter-intuitive bit: <strong>in Rust, variables are immutable by default.</strong> You write:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = 5;
+x = 6;          // compile error: cannot assign twice to immutable variable `x`
+<span class="boring">}</span></code></pre>
+<p>This code does not compile. To make <code>x</code> mutable, you must <strong>explicitly</strong> tell the compiler:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut x = 5;
+x = 6;          // now OK
+<span class="boring">}</span></code></pre>
+<p>If you have written C, Java, or JavaScript, this is the exact opposite of your intuition — in those languages, variables are mutable by default. Why does Rust flip it? Because “cannot-change-by-default” is a huge safety net.</p>
+<p>Imagine you are reading someone else’s code and see a variable <code>config</code>. In JS, has some function secretly mutated it? You do not know — you have to go dig through every call’s source. But in Rust, as long as <code>config</code> lacks <code>mut</code>, you can be <strong>one hundred percent sure</strong>: from creation until leaving scope, not a hair on it will be touched. When reading code, which values are “fixed” and which are “mutable” can be identified at a glance. A vast number of production bugs come from “a value got changed somewhere you did not notice” — Rust squashes that possibility at compile time.</p>
+<h2 id="3-mut-makes-mutation-visible-in-broad-daylight"><a class="header" href="#3-mut-makes-mutation-visible-in-broad-daylight">3. <code>mut</code> makes mutation visible in broad daylight</a></h2>
+<p><code>mut</code>’s second benefit is that it makes “modifying data” <strong>highly explicit</strong>.</p>
+<p>Seeing <code>let mut x = 5;</code>, anyone reading the code (including yourself a few months later) immediately becomes alert: heads up, this value will change later. In other words, those three letters <code>mut</code> are themselves a line of documentation — they spell out “mutation happens here” right on the variable declaration.</p>
+<p>The reverse also holds: if you label something <code>mut</code> but never actually mutate the variable, the Rust compiler will nag you in return:</p>
+<pre><code class="language-text">warning: variable does not need to be mutable
+    let mut y = 5;
+        ----^
+        help: remove this `mut`
+</code></pre>
+<p>It suggests deleting the unnecessary <code>mut</code>. <code>mut</code> is not meant to be a decoration you casually tack on — it is a solemn declaration that “this really will be changed.” The compiler watches to make sure you do not label things recklessly.</p>
+<h2 id="4-the-iron-law-shared-xor-mutable-and-a-first-meeting-with-the-borrow-checker"><a class="header" href="#4-the-iron-law-shared-xor-mutable-and-a-first-meeting-with-the-borrow-checker">4. The iron law “shared XOR mutable,” and a first meeting with the borrow checker</a></h2>
+<p>The real weight of <code>mut</code> lies behind an iron law of Rust:</p>
+<blockquote>
+<p><strong>Shared XOR mutable.</strong> You can either have multiple <strong>read-only</strong> borrows, or exactly <strong>one</strong> writable borrow — never both at the same time.</p>
+</blockquote>
+<p>A new term appears here: <strong>borrow</strong>. A borrow means using a value temporarily without taking its ownership, and it comes in two kinds: read-only <code>&amp;</code> (shared borrow) and writable <code>&amp;mut</code> (mutable borrow). Those <code>&amp;self</code> / <code>&amp;mut self</code> symbols from the last post are exactly this.</p>
+<p>This iron law is not a document you are expected to follow on your own — it is enforced <strong>at compile time</strong> by something called the <strong>borrow checker</strong>. It watches every borrow in your code, and the moment it detects a conflict like “multiple places want to read while one place wants to write,” it refuses to compile:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut s = String::from("hi");
+let r1 = &amp;s;          // read-only borrow
+let r2 = &amp;mut s;      // mutable borrow — compiler rejects (E0502)
+println!("{} {}", r1, r2);
+<span class="boring">}</span></code></pre>
+<p><code>r1</code> is still borrowing <code>s</code> to read, and <code>r2</code> also wants to borrow <code>s</code> to write — on the same value, reading and writing collide, and the borrow checker does not allow it.</p>
+<p>Why is this rule so important? Because it eradicates at the root two disasters that torment multi-threaded programmers:</p>
+<ul>
+<li><strong>Data races</strong>: multiple threads simultaneously read and write the same memory, producing unpredictable results. With this rule, such conflicts are stopped at compile time — they never even reach runtime.</li>
+<li><strong>Iterator invalidation</strong>: iterating over a collection while modifying it inside the loop easily crashes the program. The same conflict gets flagged by the borrow checker ahead of time.</li>
+</ul>
+<p>This JS-vs-Rust comparison gives you a visceral sense of the rule’s weight:</p>
+<pre><code class="language-javascript">// JavaScript: will the passed-in user be secretly mutated? You have to go read the source.
+let user = { name: "Alice", role: "admin" };
+doSomething(user);
+</code></pre>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Rust: read-only borrow &amp;user — the caller can be confident user will not be changed
+print_role(&amp;user);
+
+// To mutate, you must explicitly borrow as mutable — this line literally says &amp;mut
+let mut settings = Settings::new();
+apply_defaults(&amp;mut settings);
+<span class="boring">}</span></code></pre>
+<p>Now, the exact mechanism of how the borrow checker works — that entire “ownership + lifetime” system behind it — is a whole tough subject, and I will spend a dedicated post (maybe even several) slowly taking it apart later. For today, you only need to remember three things: it exists, it watches “shared XOR mutable,” and it eliminates an entire class of bugs at compile time. We are just planting the seed here; we will let it sprout later.</p>
+<h2 id="5-why-not-make-everything-immutable-the-performance-case-for-mut"><a class="header" href="#5-why-not-make-everything-immutable-the-performance-case-for-mut">5. Why not make everything immutable: the performance case for <code>mut</code></a></h2>
+<p>At this point you might ask: if immutability is this safe, why does not Rust just go full functional language and make everything absolutely immutable?</p>
+<p>The answer is <strong>performance</strong>. The bottom layer of a computer — CPU and memory — is fundamentally mutable hardware. If everything were truly immutable, then every “modification” of a value would require allocating a new block of memory and copying the old data over — the overhead would be enormous. Rust chooses to give you the protection of “immutable by default” where you need safety, while also letting you use <code>mut</code> to <strong>mutate in place</strong> where you need performance, without copying.</p>
+<p>This is what Rust calls a <strong>zero-cost abstraction</strong>: with <code>mut</code>, you get the “sense of safety” of functional programming while retaining the “high performance” of imperative languages’ “direct memory manipulation, in-place mutation” — both, with neither compromised.</p>
+<h2 id="6-walking-into-processspec-what-this-spec-list-looks-like"><a class="header" href="#6-walking-into-processspec-what-this-spec-list-looks-like">6. Walking into ProcessSpec: what this “spec list” looks like</a></h2>
+<p>With <code>mut</code> as our new lens, let us formally open the definition of <code>ProcessSpec</code>. This is the “spec list” for configuring a child process from the last chapter:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProcessSpec {
+    program: OsString,
+    args: Vec&lt;OsString&gt;,
+    cwd: Option&lt;PathBuf&gt;,
+    envs: Vec&lt;(OsString, OsString)&gt;,
+    stdin: ProcessStdio,
+    stdout: ProcessStdio,
+    stderr: ProcessStdio,
+    kill_on_drop: bool,
+}
+<span class="boring">}</span></code></pre>
+<p>That <code>#[derive(Debug, Clone, PartialEq, Eq)]</code> line we already covered last time — makes the struct printable, clonable, and equality-comparable. No need to repeat it. Let us scan through the fields to get an overall picture, then pick the key ones to unpack:</p>
+<ul>
+<li><code>program: OsString</code> — the executable to launch (e.g. <code>"echo"</code>);</li>
+<li><code>args: Vec&lt;OsString&gt;</code> — command-line arguments, a list;</li>
+<li><code>cwd: Option&lt;PathBuf&gt;</code> — working directory, maybe set or not (this <code>Option</code> we save for the next post);</li>
+<li><code>envs: Vec&lt;(OsString, OsString)&gt;</code> — environment variables, a list of “key=value” pairs, the main subject of this post;</li>
+<li><code>stdin</code> / <code>stdout</code> / <code>stderr: ProcessStdio</code> — the three standard stream policies, last chapter’s enum;</li>
+<li><code>kill_on_drop: bool</code> — should the child process be killed when this spec is dropped?</li>
+</ul>
+<p>Most of these types you can probably already guess the gist of, but two new faces need a formal introduction: <code>OsString</code>, and that somewhat intimidating <code>Vec&lt;(OsString, OsString)&gt;</code>.</p>
+<h2 id="7-first-meet-a-new-face-osstring"><a class="header" href="#7-first-meet-a-new-face-osstring">7. First, meet a new face: OsString</a></h2>
+<p><code>OsString</code> comes from the standard library’s <code>std::ffi</code> module (<code>ffi</code> is short for foreign function interface, roughly meaning “the part that talks to the operating system”). It is an <strong>OS-native string</strong>.</p>
+<p>Why does such a string need to exist separately? Because the <code>String</code> we normally use has Rust’s guarantee that it contains <strong>valid UTF-8 text</strong> — which suffices for most applications — but two things, command-line arguments and environment variables, are not guaranteed by the operating system to be valid UTF-8 (on certain systems and in certain language environments, filenames and environment variables can contain non-UTF-8 bytes). So for strings that “directly interact with the OS,” Rust uses <code>OsString</code> instead of <code>String</code>.</p>
+<p>For now, just think of it as “a <code>String</code> tailor-made for command lines and environment variables.” Deeper distinctions we can expand on when we need them.</p>
+<h2 id="8-the-key-breakdown-vecosstring-osstring"><a class="header" href="#8-the-key-breakdown-vecosstring-osstring">8. The key breakdown: <code>Vec&lt;(OsString, OsString)&gt;</code></a></h2>
+<p>This is the main act of the second half of this post. The type of the <code>envs</code> field, <code>Vec&lt;(OsString, OsString)&gt;</code>, wraps three layers from outside in: <code>Vec</code>, <code>&lt;&gt;</code>, and the inner tuple <code>(OsString, OsString)</code>. Let us peel them one by one.</p>
+<p><strong>First layer: what is <code>Vec</code>?</strong> <code>Vec</code> (pronounced “vector”) is the most commonly used <strong>growable array</strong> in Rust — like JavaScript’s <code>Array</code>, Java’s <code>ArrayList</code>, Go’s slice, Python’s <code>list</code>: it holds a sequence of values of the same type, and its length can grow at any time. An empty one is created with <code>Vec::new()</code>, and <code>.push()</code> appends to the end:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut args: Vec&lt;OsString&gt; = Vec::new();   // an empty list
+args.push(OsString::from("hello"));          // add one
+args.push(OsString::from("world"));          // add another
+<span class="boring">}</span></code></pre>
+<p>Note <code>mut</code> appearing here: the list itself needs to be mutable to be <code>push</code>ed, so it is declared <code>let mut args</code>.</p>
+<p><strong>Second layer: what is <code>&lt;&gt;</code>?</strong> The <code>OsString</code> inside the angle brackets after <code>Vec</code> is a <strong>generic parameter</strong>. Its meaning: “this <code>Vec</code> holds items of type <code>OsString</code>.” <code>Vec</code> is a universal container; what type it holds is specified by you in angle brackets — <code>Vec&lt;i32&gt;</code> holds integers, <code>Vec&lt;String&gt;</code> holds strings, and <code>Vec&lt;OsString&gt;</code> holds <code>OsString</code>s. So <code>args</code> is “a list of <code>OsString</code>s.”</p>
+<p><strong>Third layer: what is the tuple <code>(OsString, OsString)</code> inside?</strong> The parentheses wrapping <code>(A, B)</code> form a <strong>tuple</strong>, whose job is to <strong>pack several values together in a fixed order into a single value</strong>. <code>(OsString, OsString)</code> is one tuple containing two <code>OsString</code>s — a natural fit for representing “a key, a value” pair.</p>
+<p>Combine all three layers, and the meaning of <code>Vec&lt;(OsString, OsString)&gt;</code> becomes clear: <strong>a list of tuples, where each tuple is a <code>(key, value)</code> pair.</strong> That is exactly <code>envs</code> — a set of environment variables.</p>
+<p>So how does this list get filled up? Look at the <code>env</code> configuration method:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self {
+    self.envs.push((key.into(), value.into()));
+    self
+}
+<span class="boring">}</span></code></pre>
+<p>Every time you call <code>.env("PATH", "/usr/bin")</code>, the method body <code>push</code>es one <code>(key, value)</code> pair to the tail of <code>envs</code>. Call it three times, and <code>envs</code> contains three pairs.</p>
+<blockquote>
+<p>Wait — there is a design choice here worth a second look: why are environment variables stored as <code>Vec&lt;(key, value)&gt;</code> rather than a map (like JS’s <code>Map</code> or Python’s <code>dict</code>)? Because this spec list needs to <strong>preserve the order you set</strong>, and also <strong>allow the same key to appear multiple times</strong> — a later entry overrides an earlier one, which perfectly matches the “environment variable override” semantics. With <code>Vec&lt;(key, value)&gt;</code>, both ordering and duplication come naturally; most map types automatically deduplicate and do not guarantee order, making them a worse fit.</p>
+</blockquote>
+<h2 id="9-processspecs-implementation-builder-and-accessor"><a class="header" href="#9-processspecs-implementation-builder-and-accessor">9. ProcessSpec’s implementation: builder and accessor</a></h2>
+<p>With the definition clear, look at the methods on <code>impl ProcessSpec</code> and you will see they split neatly into two groups.</p>
+<p><strong>The first group is “configuration” methods, forming the so-called builder pattern:</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+
+pub fn arg(mut self, arg: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+pub fn args&lt;Args, Arg&gt;(mut self, args: Args) -&gt; Self where ... { ... }
+pub fn cwd(mut self, cwd: impl Into&lt;PathBuf&gt;) -&gt; Self { ... }
+pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self { ... }
+pub fn stdout(mut self, stdout: ProcessStdio) -&gt; Self { ... }
+pub fn stderr(mut self, stderr: ProcessStdio) -&gt; Self { ... }
+pub fn kill_on_drop(mut self) -&gt; Self { ... }
+pub fn keep_alive_on_drop(mut self) -&gt; Self { ... }
+<span class="boring">}</span></code></pre>
+<p>Their signatures all look nearly identical: <code>mut self -&gt; Self</code> — take the old <code>self</code>, modify it, return a new one. Revisiting <code>mut</code> from the beginning of this post: each of these methods needs to <strong>modify</strong> some field of <code>self</code>, so the receiver must be <code>mut self</code>. And precisely because each method returns a new <code>Self</code>, you can chain them:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let spec = ProcessSpec::new("echo")
+    .arg("hello")
+    .env("RUST_LOG", "debug")
+    .stdout(ProcessStdio::Piped);
+<span class="boring">}</span></code></pre>
+<blockquote>
+<p>As an aside on that <code>&lt;Args, Arg&gt;</code> and trailing <code>where ...</code> in <code>args</code>’s signature: that is how generic methods are written, meaning “my method can accept anything that can be iterated to produce elements that can be converted into <code>OsString</code>.” This is advanced Rust generics; for today, just recognize the shape. A deeper introduction will come later.</p>
+</blockquote>
+<p><strong>The second group is “access” methods</strong>, all using <code>&amp;self</code>, read-only and non-mutating:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn program(&amp;self) -&gt; &amp;OsStr { ... }
+pub fn args_iter(&amp;self) -&gt; impl Iterator&lt;Item = &amp;OsStr&gt; { ... }
+pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; { ... }
+pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; { ... }
+pub fn stdin_policy(&amp;self) -&gt; ProcessStdio { ... }
+pub fn stdout_policy(&amp;self) -&gt; ProcessStdio { ... }
+pub fn stderr_policy(&amp;self) -&gt; ProcessStdio { ... }
+pub fn should_kill_on_drop(&amp;self) -&gt; bool { ... }
+<span class="boring">}</span></code></pre>
+<p>They do not consume <code>self</code> (using <code>&amp;self</code>, echoing last chapter’s “borrow” concept); they only <strong>look up</strong> the contents written into the spec list and show them to you. Configuration and access, clearly separated responsibilities: one group handles “editing the list,” using <code>mut self</code>; the other group handles “reading the list,” using <code>&amp;self</code>.</p>
+<h2 id="10-recap"><a class="header" href="#10-recap">10. Recap</a></h2>
+<ul>
+<li><strong>Rust variables are immutable by default</strong>; to mutate, you must explicitly write <code>mut</code>. This default rule both prevents “accidental mutation” bugs and makes “which values change” obvious when reading code. Excess <code>mut</code> will even trigger a compiler warning telling you to remove it.</li>
+<li>Rust’s iron law is <strong>“shared XOR mutable”</strong>: either multiple read-only borrows <code>&amp;</code>, or one mutable borrow <code>&amp;mut</code> — never both. This rule is enforced at compile time by the <strong>borrow checker</strong>, eradicating data races and iterator invalidation at the root. Its full mechanism we save for a future deep dive.</li>
+<li><code>mut</code> lets you enjoy the safety of “immutable by default” while also <strong>mutating in place</strong> when needed, combining functional safety with imperative performance (zero-cost abstraction).</li>
+<li><code>ProcessSpec</code> is a “spec list” for configuring a child process. Its fields include <code>OsString</code> (OS-native string, for command lines/environment variables) and <code>Vec&lt;(OsString, OsString)&gt;</code> (a list of key-value pairs, preserving order and allowing duplicate-override).</li>
+<li><code>Vec</code> is a growable array; angle brackets <code>&lt;&gt;</code> hold the <strong>generic parameter</strong> specifying what type the container holds; parentheses <code>(A, B)</code> form a <strong>tuple</strong>, packing values in a fixed order.</li>
+<li><code>ProcessSpec</code>’s methods split into two groups: <strong>builder</strong> configuration methods use <code>mut self -&gt; Self</code>, achieving chainable calls by returning a new <code>Self</code>; <strong>accessor</strong> methods use <code>&amp;self</code>, read-only and non-mutating.</li>
+</ul>
+<p>In the next post, we will tackle two types in <code>ProcessSpec</code> that we have not yet touched — <code>Option</code> and <code>PathBuf</code> — and push today’s brief taste of the borrow checker one step further.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="post-04-option-pathbuf-and-deeper-borrowing"><a class="header" href="#post-04-option-pathbuf-and-deeper-borrowing">Post 04: Option, PathBuf, and Deeper Borrowing</a></h1>
+<h2 id="1-two-new-faces-hidden-in-a-single-field"><a class="header" href="#1-two-new-faces-hidden-in-a-single-field">1. Two new faces hidden in a single field</a></h2>
+<p>Last time, when scanning through <code>ProcessSpec</code>’s fields, I deliberately said nothing about <code>cwd</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>cwd: Option&lt;PathBuf&gt;,
+<span class="boring">}</span></code></pre>
+<p>It represents “the child process’s working directory.” But look at its type — one short line crams in two things we have not formally met: <code>Option</code> and <code>PathBuf</code>. Even more interesting is the method that accesses it:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; {
+    self.cwd.as_deref()
+}
+<span class="boring">}</span></code></pre>
+<p>The field is clearly <code>Option&lt;PathBuf&gt;</code>, yet the method returns <code>Option&lt;&amp;Path&gt;</code> — <code>PathBuf</code> somehow turned into <code>&amp;Path</code>. What is this string of symbols saying? We start with the concept that is most critical and most worth understanding on its own merits: <code>Option</code>.</p>
+<h2 id="2-option-using-a-type-to-clearly-express-might-not-be-there"><a class="header" href="#2-option-using-a-type-to-clearly-express-might-not-be-there">2. Option: using a type to clearly express “might not be there”</a></h2>
+<h3 id="what-it-is"><a class="header" href="#what-it-is">What it is</a></h3>
+<p><code>Option&lt;T&gt;</code> is an <strong>enum</strong> provided by the standard library — yes, the same kind of enum we covered in Post 02, except that the standard library pre-defined this one for you. It has only two variants:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum Option&lt;T&gt; {
+    Some(T),   // there is a value, of type T
+    None,      // nothing
+}
+<span class="boring">}</span></code></pre>
+<p>Meaning: a value of type <code>Option&lt;T&gt;</code> is either <code>Some(containing a T inside)</code>, or simply <code>None</code> (nothing at all). For instance, <code>cwd: Option&lt;PathBuf&gt;</code> — the working directory is either set (<code>Some(some path)</code>) or not (<code>None</code>). Or in <code>traits.rs</code>, <code>id(&amp;self) -&gt; Option&lt;u32&gt;</code> — a process’s PID is either obtainable (<code>Some(123)</code>) or not (<code>None</code>).</p>
+<p>The <code>&lt;T&gt;</code> inside <code>Option&lt;T&gt;</code> is the <strong>generic</strong> we covered last time: <code>Option</code> does not restrict what type it holds; you specify it — <code>Option&lt;u32&gt;</code>, <code>Option&lt;PathBuf&gt;</code>, <code>Option&lt;String&gt;</code>, as you like.</p>
+<h3 id="why-rust-invented-it"><a class="header" href="#why-rust-invented-it">Why Rust invented it</a></h3>
+<p>People who have written Python, JS, Java, or Go know “nothing” all too well: Python’s <code>None</code>, JS’s <code>null</code> / <code>undefined</code>, Java’s <code>null</code>, Go’s <code>nil</code>. They all share a common flaw — <strong>any variable, no matter how its type is declared, can suddenly be “empty.”</strong> You get a <code>User</code> object, call <code>user.name</code>, and <code>user</code> turns out to be <code>null</code> — the program crashes in your face (Java’s <code>NullPointerException</code>, Python’s <code>'NoneType' object has no attribute</code>). The industry calls null references “the billion-dollar mistake” — because the crashes and bugs they cause have probably cost far more than that.</p>
+<p>Rust simply <strong>has no null</strong>. In Rust, “might not be there” must be explicitly written as <code>Option</code>, and — this is the key — <strong>the type system forces you to handle the “nothing” case before you use it.</strong> You cannot treat an <code>Option&lt;PathBuf&gt;</code> as a <code>PathBuf</code>; the compiler stops you and demands you first confirm whether it is <code>Some</code> or <code>None</code>. So the entire class of “forgot to check for null → crash” problems basically does not exist in Rust.</p>
+<h3 id="how-to-use-it"><a class="header" href="#how-to-use-it">How to use it</a></h3>
+<p><code>Option</code> comes with a set of companion tools. Let us meet the most commonly used ones.</p>
+<p><strong>The most thorough way is <code>match</code></strong> (our old friend from Post 02). It forces you to think through both branches:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let msg = match spec.cwd_path() {
+    Some(path) =&gt; format!("working directory is {}", path.display()),
+    None        =&gt; "no working directory set".to_string(),
+};
+<span class="boring">}</span></code></pre>
+<p><strong>If you only care about the “present” case</strong>, writing <code>if let</code> is simpler — it is a concise version of <code>match</code> that only executes when a single pattern matches:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if let Some(cwd) = spec.cwd_path() {
+    command.current_dir(cwd);   // only set the directory when there really is one
+}
+<span class="boring">}</span></code></pre>
+<p>This is not made up — the code that actually launches a child process in <code>tokio_process.rs</code> writes exactly these lines when handling the working directory. <code>if let Some(cwd)</code> does “if present, extract it and call it <code>cwd</code>” in one shot; on <code>None</code> the whole block simply skips.</p>
+<p><strong>If you want to pass the “nothing” responsibility up the call chain</strong>, use the <code>?</code> operator: on <code>None</code> it immediately returns <code>None</code> from the current function; on <code>Some(x)</code> it extracts <code>x</code> and carries on. (<code>?</code> also works on the <code>Result</code> type for error handling, which we will go into when we cover error handling.)</p>
+<p><strong>If you just want to ask a yes/no question</strong>, use <code>is_some()</code> / <code>is_none()</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if spec.cwd_path().is_none() { /* no working directory set */ }
+<span class="boring">}</span></code></pre>
+<p><strong>If you are absolutely certain “this is definitely Some”</strong>, use <code>unwrap()</code> or <code>expect("explanation")</code> to yank the value out directly:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let path = spec.cwd_path().unwrap();   // if it's None, the program will panic
+<span class="boring">}</span></code></pre>
+<blockquote>
+<p><code>unwrap</code> is a tool to be wary of: on <code>None</code> it causes the program to <strong>panic</strong> (crash and exit immediately). In examples and tests, using it casually is fine; but in production code, prefer <code>match</code> / <code>if let</code> / <code>?</code> to properly handle the “nothing” case, rather than gambling that “it should not be None.”</p>
+</blockquote>
+<p>There are also “combinator” methods like <code>unwrap_or(default)</code> (give a fallback if absent) and <code>map(function)</code> (transform the value inside, staying <code>None</code> if it was <code>None</code>) — just keep them in mind for now; we will expand on them when needed.</p>
+<h3 id="an-example-where-option-is-used-to-its-fullest-take"><a class="header" href="#an-example-where-option-is-used-to-its-fullest-take">An example where Option is used to its fullest: take</a></h3>
+<p><code>Option</code> also has one usage that especially showcases the cleverness of its design, right in <code>traits.rs</code>. Look at these <code>ManagedProcess</code> methods:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn take_stdin(&amp;mut self)  -&gt; Option&lt;Self::Stdin&gt;;
+fn take_stdout(&amp;mut self) -&gt; Option&lt;Self::Stdout&gt;;
+fn take_stderr(&amp;mut self) -&gt; Option&lt;Self::Stderr&gt;;
+<span class="boring">}</span></code></pre>
+<p>The child process’s three pipes can be “taken.” The first time, you get <code>Some(pipe)</code>; a second time, the same slot has been emptied, so it becomes <code>None</code>. <strong>“Something used to be here, but it was taken — now it is empty” — this is exactly what <code>Option</code> is inherently good at expressing.</strong> The act of taking corresponds precisely to <code>Option</code>’s <code>.take()</code> method: it turns <code>Some(x)</code> into <code>None</code> while handing that <code>x</code> back to you:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut pipe: Option&lt;String&gt; = Some("stdout pipe".to_string());
+let got = pipe.take();          // take: got = Some("stdout pipe")
+// now pipe is None; taking again only yields None
+<span class="boring">}</span></code></pre>
+<p>In other languages you would have to simulate this “taken-now-empty” semantics by “setting to null and remembering to check every time”; Rust expresses it cleanly with one type, and has the compiler watch to make sure you check before every use.</p>
+<h2 id="3-pathbuf-a-string-purpose-built-for-paths"><a class="header" href="#3-pathbuf-a-string-purpose-built-for-paths">3. PathBuf: a string purpose-built for “paths”</a></h2>
+<p>Back to the other half of that <code>cwd</code> field: <code>PathBuf</code>.</p>
+<p>You may have noticed that in Rust, “strings” come in pairs: the owning <code>String</code> and its read-only slice <code>str</code>; the <code>OsString</code> and <code>OsStr</code> we met last time are another pair. <code>PathBuf</code> and <code>Path</code> are a third pair following the same pattern:</p>
+<ul>
+<li><strong><code>PathBuf</code> (path buffer)</strong> is an <strong>owning, growable</strong> path, analogous to <code>String</code> / <code>OsString</code>. You can append to it: <code>PathBuf::from("/etc").join("hosts")</code> produces a new <code>PathBuf</code> with the content <code>/etc/hosts</code>.</li>
+<li><strong><code>Path</code></strong> is a <strong>read-only path slice</strong>, analogous to <code>str</code> / <code>OsStr</code>, typically appearing as the borrow <code>&amp;Path</code>.</li>
+</ul>
+<p>Why make a dedicated type for “paths” instead of just using strings? Two reasons. First, <strong>cross-platform</strong>: Windows uses <code>\</code> as the separator, Unix uses <code>/</code>; <code>PathBuf::join</code> automatically splices according to the current system — you do not need to worry about it yourself. Second, <strong>paths are also not guaranteed to be valid UTF-8</strong> — <code>PathBuf</code> is built on top of <code>OsStr</code>, so it can hold all those funky names that file systems throw at you.</p>
+<p>So <code>cwd: Option&lt;PathBuf&gt;</code> combined reads very naturally: a <strong>possibly-present, possibly-absent</strong>, <strong>appendable, cross-platform working directory</strong>.</p>
+<h2 id="4-pushing-borrowing-one-step-further-why-the-accessor-returns-path"><a class="header" href="#4-pushing-borrowing-one-step-further-why-the-accessor-returns-path">4. Pushing borrowing one step further: why the accessor returns <code>&amp;Path</code></a></h2>
+<p>Now back to the detail that raised our suspicion: the field is <code>Option&lt;PathBuf&gt;</code>, yet the access method returns <code>Option&lt;&amp;Path&gt;</code>. Why?</p>
+<p>First, the answer — <code>cwd_path</code>’s body is a single line:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; {
+    self.cwd.as_deref()
+}
+<span class="boring">}</span></code></pre>
+<p>The keyword is “borrowing.” Last time we learned the borrow checker’s iron law “shared XOR mutable,” but that was just hearing a rule. Now, using this method, let us see what borrowing actually looks like in real code.</p>
+<p><strong><code>cwd_path</code> takes <code>&amp;self</code> — a read-only borrow of the entire <code>ProcessSpec</code>.</strong> Since it only reads and has no intention to change, it naturally has no reason to copy that entire <code>PathBuf</code> and then hand it back to you (copying a path string has a cost). It directly <strong>lends out</strong> a read-only reference <code>&amp;Path</code> that points to its own internal <code>cwd</code> field — follow that reference and you can see the path. Zero copy, very cost-effective.</p>
+<p>This also makes last post’s rule concrete. <code>&amp;self</code> is a <strong>read-only borrow</strong>, and the iron law permits “multiple read-only borrows to coexist.” So usage like the following is perfectly fine in Rust — you can call several read-only accessors on the same <code>spec</code> simultaneously, and their borrows coexist:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let prog = spec.program();       // read-only borrow 1: returns &amp;OsStr
+let cwd  = spec.cwd_path();     // read-only borrow 2: returns Option&lt;&amp;Path&gt;
+// both borrows are just "reading"; they coexist, no conflict
+<span class="boring">}</span></code></pre>
+<p>(Interleave a <code>&amp;mut spec</code> mutation in the middle, and the borrow checker would jump out to stop you — because that would violate “mutable means not shared.”)</p>
+<p>So what does <code>as_deref()</code> do? It is responsible for turning <code>Option&lt;PathBuf&gt;</code> into <code>Option&lt;&amp;Path&gt;</code>. <code>deref</code> means “dereference”; the effect here: <strong>“downgrade”</strong> the owning <code>PathBuf</code> into a read-only <code>&amp;Path</code> (because <code>PathBuf</code> implements a trait called <code>Deref</code>, allowing it to lend itself out as a <code>Path</code>). <code>as_deref</code> applies this “downgrade” inside the <code>Option</code>: <code>Some(a path)</code> becomes <code>Some(the borrowed &amp;Path)</code>, and <code>None</code> stays <code>None</code>. So the field’s <code>Option&lt;PathBuf&gt;</code>, seen from outside, becomes <code>Option&lt;&amp;Path&gt;</code>.</p>
+<blockquote>
+<p>If you connect this section back with the earlier review of <code>String</code>/<code>str</code>, <code>OsString</code>/<code>OsStr</code>, <code>PathBuf</code>/<code>Path</code>, you will notice a recurring pattern in Rust: <strong>“one owning type + one borrowing type”</strong> appearing in pairs. This is not a coincidence — it is a manifestation of the borrowing philosophy carved deep into the type system: <strong>in Rust, “do you own it, or are you just borrowing it” is a question the type itself answers.</strong> The borrow checker can do its job precisely because these types put ownership relationships on the table in plain sight.</p>
+</blockquote>
+<p>Finally, one more seed to plant: the <code>&amp;Path</code> returned by <code>cwd_path</code> points to memory inside <code>spec</code>. That means <strong>it cannot outlive <code>spec</code></strong> — once <code>spec</code> is destroyed, that reference becomes a dangling pointer. The Rust compiler uses a mechanism called <strong>lifetimes</strong> to guarantee at compile time that a reference never “lives longer than the data it points to.” You may have noticed that the signature <code>cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt;</code> does not write out any lifetime — that is because the compiler <strong>elides</strong> it according to a set of default rules. The full rules of lifetimes are another tough subject, saved for later; today just internalize one thing: <strong>the returned <code>&amp;Path</code> is bound to <code>self</code> — it is “borrowed from” <code>self</code>.</strong></p>
+<h2 id="5-recap"><a class="header" href="#5-recap">5. Recap</a></h2>
+<ul>
+<li><strong><code>Option&lt;T&gt;</code></strong> is a standard library enum with two variants <code>Some(T)</code> / <code>None</code>, purpose-built to express “might not be there.” Rust <strong>has no null</strong>; every “could be absent” situation must be expressed with <code>Option</code>, and the type system forces you to handle <code>None</code> before use — the entire class of null-pointer crashes is thereby essentially eliminated.</li>
+<li>Common tools for handling <code>Option</code>: <code>match</code>, <code>if let Some(x)</code>, <code>?</code> (propagate <code>None</code> upward), <code>is_some()</code> / <code>is_none()</code>, <code>unwrap()</code> / <code>expect()</code> (panics on <code>None</code> — use sparingly in production), <code>unwrap_or</code> / <code>map</code> etc. <code>.take()</code> in combination with <code>Option</code> also elegantly expresses “taken-now-empty” semantics.</li>
+<li><strong><code>PathBuf</code></strong> is an owning, appendable, cross-platform path (like <code>String</code>); <strong><code>Path</code></strong> is its read-only slice (like <code>str</code>, often appearing as <code>&amp;Path</code>). <code>PathBuf</code> is built on top of <code>OsStr</code> and does not require valid UTF-8.</li>
+<li><code>cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt;</code> returns a <strong>borrow</strong>, not a copy: <code>&amp;self</code> is a read-only borrow, and multiple read-only borrows can coexist (“shared”); <code>as_deref()</code> downgrades <code>Option&lt;PathBuf&gt;</code> to <code>Option&lt;&amp;Path&gt;</code>.</li>
+<li>Rust’s “owning type + borrowing type” pairs (<code>String</code>/<code>str</code>, <code>OsString</code>/<code>OsStr</code>, <code>PathBuf</code>/<code>Path</code>) reflect the borrowing philosophy in the type system. The returned <code>&amp;Path</code> is <strong>lifetime-bound</strong> to <code>self</code> — full rules deferred.</li>
+</ul>
+<p>In the next post, we will leave <code>spec.rs</code> behind and step into <code>traits.rs</code> to see how the two traits <code>ProcessSpawner</code> and <code>ManagedProcess</code> define the entire “interface contract” for the spawner and process handle roles.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="post-05-trait-associated-types-and-result--two-traits-define-the-whole-interface-contract"><a class="header" href="#post-05-trait-associated-types-and-result--two-traits-define-the-whole-interface-contract">Post 05: trait, Associated Types, and Result — Two Traits Define the Whole Interface Contract</a></h1>
+<h2 id="1-traitsrs-has-only-two-traits-yet-they-nail-everything-down"><a class="header" href="#1-traitsrs-has-only-two-traits-yet-they-nail-everything-down">1. traits.rs has only two traits, yet they nail everything down</a></h2>
+<p>In the first four posts we kept circling inside <code>spec.rs</code>: first <code>ProcessStdio</code>, then <code>ProcessSpec</code>. Now let us switch files and open <code>traits.rs</code>. This file is short — it defines only two <strong>traits</strong>, <code>ProcessSpawner</code> and <code>ManagedProcess</code> — but together they pin down the entire <strong>interface contract</strong> for the roles of “spawner” and “process handle.” Let us pull the original out first:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use std::future::Future;
+use std::io;
+use std::process::ExitStatus;
+
+use tokio::io::{AsyncRead, AsyncWrite};
+
+use crate::ProcessSpec;
+
+pub trait ProcessSpawner {
+    type Process: ManagedProcess;
+
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+}
+
+pub trait ManagedProcess {
+    type Stdin: AsyncWrite + Unpin + Send + 'static;
+    type Stdout: AsyncRead + Unpin + Send + 'static;
+    type Stderr: AsyncRead + Unpin + Send + 'static;
+
+    fn id(&amp;self) -&gt; Option&lt;u32&gt;;
+    fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;;
+    fn take_stdout(&amp;mut self) -&gt; Option&lt;Self::Stdout&gt;;
+    fn take_stderr(&amp;mut self) -&gt; Option&lt;Self::Stderr&gt;;
+    fn try_wait(&amp;self) -&gt; io::Result&lt;Option&lt;ExitStatus&gt;&gt;;
+    fn wait(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;ExitStatus&gt;&gt; + Send + '_;
+    fn kill(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;()&gt;&gt; + Send + '_;
+}
+<span class="boring">}</span></code></pre>
+<p>Only a few dozen lines, yet a fair number of new things burst out: <code>trait</code> itself, <code>type Process: ManagedProcess</code>, <code>Self::Process</code>, <code>io::Result</code>, <code>'static</code>, <code>Send</code>, <code>impl Future</code>… Do not be intimidated. Most of them orbit around the same core — <strong>trait</strong>. We start by unpacking this most important concept.</p>
+<p>(As a side note on the first line <code>use crate::ProcessSpec;</code>: <code>crate::</code> means “start from the root of this crate” — it pulls in the <code>ProcessSpec</code> that was placed at the front door via <code>pub use</code> back in Post 01.)</p>
+<h2 id="2-trait-a-capability-contract"><a class="header" href="#2-trait-a-capability-contract">2. trait: a “capability contract”</a></h2>
+<p>A <strong>trait</strong> is Rust’s tool for defining a “capability contract” — it declares: “any type that wants to claim it has this capability must provide these methods.” If you have written Java or Go, you can think of it as an <strong>interface</strong>; if you have written TypeScript, think of <code>interface</code> as a “shape contract.” In fact, we already brushed against traits back in Post 02: every name inside <code>#[derive(Debug, Clone, Copy, ...)]</code> — <code>Debug</code>, <code>Clone</code>, <code>Copy</code> — each is a trait; it is just that the compiler implemented them for us automatically back then. Now, we are going to <strong>define</strong> a trait ourselves.</p>
+<p>Defining a trait is essentially listing a “required methods checklist”:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait ProcessSpawner {
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; ...;
+}
+<span class="boring">}</span></code></pre>
+<p>Note that only the method’s <strong>signature</strong> (name, parameters, return type) is written here, no body — this is exactly what a contract should look like: <strong>a trait only stipulates “what methods must exist,” not “how to implement them specifically.”</strong> How to implement is each concrete type’s own business.</p>
+<p><code>ManagedProcess</code> is the same: it lists what a “process handle” must be able to do — report its PID (<code>id</code>), hand over the three pipes (<code>take_stdin</code> / <code>take_stdout</code> / <code>take_stderr</code>), peek at whether it has exited (<code>try_wait</code>), wait for it to exit (<code>wait</code>), force-terminate (<code>kill</code>). Whoever can do these things qualifies as a <code>ManagedProcess</code>.</p>
+<h2 id="3-how-to-implement-a-trait-impl-trait-for-type"><a class="header" href="#3-how-to-implement-a-trait-impl-trait-for-type">3. How to “implement” a trait: impl Trait for Type</a></h2>
+<p>A contract alone is not enough — someone has to fulfill it. In Rust, the syntax for “fulfilling” a trait is <strong><code>impl Trait for Type</code></strong> — “I, this <code>Type</code>, promise to implement all the methods required by <code>Trait</code>.” The actual fulfillment code is in <code>tokio_process.rs</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ProcessSpawner for TokioProcessSpawner {
+    type Process = TokioManagedProcess;
+
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt; {
+        // ... the concrete logic that actually launches a child process ...
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>This is saying: “the type <code>TokioProcessSpawner</code> officially applies for the <code>ProcessSpawner</code> position,” and provides a concrete implementation of the <code>spawn</code> method. Once fulfilled, you can call <code>.spawn(...)</code> on a <code>TokioProcessSpawner</code> — because the compiler sees this <code>impl</code> and knows it truly has that method.</p>
+<p>Fulfilling <code>ManagedProcess</code> follows the same pattern:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ManagedProcess for TokioManagedProcess {
+    type Stdin = ChildStdin;
+    type Stdout = ChildStdout;
+    type Stderr = ChildStderr;
+
+    fn id(&amp;self) -&gt; Option&lt;u32&gt; { ... }
+    fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt; { ... }
+    // ... the remaining methods ...
+}
+<span class="boring">}</span></code></pre>
+<p>Here, each line <code>type Stdin = ChildStdin;</code> is “filling in a blank” — the blank being the <strong>associated type</strong> left open in the trait. Which brings us to the next concept.</p>
+<h2 id="4-associated-types-type-process-leaves-a-blank"><a class="header" href="#4-associated-types-type-process-leaves-a-blank">4. Associated types: <code>type Process</code> leaves a “blank”</a></h2>
+<p>Look again at this line in the trait definition:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait ProcessSpawner {
+    type Process: ManagedProcess;
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+}
+<span class="boring">}</span></code></pre>
+<p><code>type Process;</code> is called an <strong>associated type</strong>. It is a “blank” that the trait leaves for the implementor — a placeholder type, to be filled in by each concrete implementation. <code>ProcessSpawner</code> is saying here: “I only care that after spawning you return ‘some process handle type’; which specific handle type, that is up to you.” In the previous section, <code>type Process = TokioManagedProcess;</code> is <code>TokioProcessSpawner</code> filling that blank with <code>TokioManagedProcess</code>.</p>
+<p>So what is <code>Self::Process</code>? Remember Post 02 where we said <code>Self</code> is “this current type”? <code>Self::Process</code> is “my own associated type <code>Process</code>.” So <code>fn spawn(...) -&gt; io::Result&lt;Self::Process&gt;</code> has a return type of “the kind of process handle that I myself define” — for <code>TokioProcessSpawner</code>, that is <code>TokioManagedProcess</code>.</p>
+<p>The colon <code>: ManagedProcess</code> after <code>type Process</code> is a <strong>bound</strong> — it demands: “the <code>Process</code> type you fill in must itself also implement the <code>ManagedProcess</code> trait.” In other words, the handle returned by the spawner must be a genuine <code>ManagedProcess</code>. We will go into bounds in more detail shortly.</p>
+<p>Why use an associated type rather than making <code>Process</code> a generic parameter on the trait (like <code>ProcessSpawner&lt;P&gt;</code>)? The distinction in one sentence: <strong>an associated type means “each implementation has exactly one choice”</strong> — one spawner corresponds to exactly one handle type, filled once and fixed. Generics, by contrast, allow the same type to be implemented repeatedly with different type parameters. Here, the “one spawner, one kind of handle” relationship is best expressed with an associated type; the more nuanced comparison with generics is left for a future post on generics.</p>
+<p><code>ManagedProcess</code>’s <code>type Stdin</code>, <code>type Stdout</code>, <code>type Stderr</code> are also associated types, respectively meaning “what concrete type are the three pipes this handle exposes to the outside” — <code>TokioManagedProcess</code> fills them in as tokio’s <code>ChildStdin</code> / <code>ChildStdout</code> / <code>ChildStderr</code>. The <code>take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;</code> we saw in Post 04 returns “my own kind of pipe,” possibly <code>Some</code> (not yet taken) or <code>None</code> (already taken).</p>
+<h2 id="5-result-turning-might-fail-into-a-type-as-well"><a class="header" href="#5-result-turning-might-fail-into-a-type-as-well">5. Result: turning “might fail” into a type as well</a></h2>
+<p>The <code>io::Result&lt;...&gt;</code> that appears repeatedly in the definitions deserves a formal introduction too. I mentioned <code>Result</code> briefly when talking about the <code>?</code> operator in Post 04; now let us make it clear.</p>
+<p><code>Result</code> is also a standard library enum, looking extremely similar to <code>Option</code>, except the “no value” branch carries an extra <strong>error reason</strong>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum Result&lt;T, E&gt; {
+    Ok(T),    // success, carrying a value T
+    Err(E),   // failure, carrying an error E
+}
+<span class="boring">}</span></code></pre>
+<p>Compare: <code>Option&lt;T&gt;</code> is “present / absent,” while <code>Result&lt;T, E&gt;</code> is “success / failure, and on failure it tells you why.” <code>io::Result&lt;T&gt;</code> is a <strong>type alias</strong> for <code>Result&lt;T, io::Error&gt;</code> — a shorthand convenient to write, specifically for “IO operations that might fail.”</p>
+<p>Behind this lies a fundamental choice of Rust: <strong>Rust has no exceptions.</strong> In Java/Python, a function can “return normally” or “throw an exception” — and what exceptions it might throw cannot be seen from the function signature; you have to dig through docs or source. Rust writes “might fail” directly into the return type: <code>fn spawn(...) -&gt; io::Result&lt;Self::Process&gt;</code> tells you plainly — “I might successfully spawn and return a handle; or I might fail and return an error.” Failure is an <strong>ordinary value</strong>, must be handled, and cannot be escaped.</p>
+<p>The tools for handling <code>Result</code> are almost identical to those for <code>Option</code>: <code>match</code> handles both branches; <code>?</code> on <code>Err</code> returns early, on <code>Ok</code> extracts the value and continues. The <code>?</code> we met in Post 04, when used on <code>Result</code>, means “propagate the error to the caller.”</p>
+<blockquote>
+<p>As with handling <code>Option</code>: <code>Result</code> has <code>.unwrap()</code> / <code>.expect()</code>, which likewise panic on <code>Err</code>. In production code, prefer <code>match</code> or <code>?</code> to properly handle errors rather than gambling that “this should not fail.”</p>
+</blockquote>
+<p>One detail worth discussing: <code>try_wait</code>’s return type is <code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code> — a <code>Result</code> wrapping an <code>Option</code>. This is not to be scary, but because two kinds of “uncertainty” are stacked: the outer <code>Result</code> means “the query itself might fail” (e.g. a system call error), the inner <code>Option</code> means “the query succeeded, but the process might not have exited yet.” <strong>“Error” and “not exited” are two different things</strong>, so they are expressed with two layers. Being able to read this kind of nesting means you have already gotten comfortable with both <code>Result</code> and <code>Option</code>.</p>
+<h2 id="6-trait-bounds-what-the-colons-and-plus-signs-are-saying"><a class="header" href="#6-trait-bounds-what-the-colons-and-plus-signs-are-saying">6. Trait bounds: what the colons and plus signs are saying</a></h2>
+<p>Finally, let us unpack those intimidating <code>:</code> and <code>+</code>. Take this line as an example:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>type Stdin: AsyncWrite + Unpin + Send + 'static;
+<span class="boring">}</span></code></pre>
+<p>The <code>AsyncWrite + Unpin + Send + 'static</code> after <code>type Stdin</code> is a chain of <strong>bounds</strong>. The colon reads as “must satisfy,” and <code>+</code> reads as “and.” The whole line means: “the <code>Stdin</code> type you fill in must simultaneously satisfy: implement <code>AsyncWrite</code>, implement <code>Unpin</code>, implement <code>Send</code>, and be <code>'static</code>.” Miss one, and the compiler rejects your <code>impl</code>.</p>
+<p>The colon in the earlier section <code>type Process: ManagedProcess;</code> is the same kind of bound — it just requires only one trait. Bounds allow traits to <strong>combine</strong> with each other: one trait can require “my associated types must themselves satisfy some other traits.”</p>
+<h2 id="7-the-async-boundary-a-preview-saved-for-later-discussion"><a class="header" href="#7-the-async-boundary-a-preview-saved-for-later-discussion">7. The async boundary: a preview (saved for later discussion)</a></h2>
+<p>So what are <code>AsyncWrite</code>, <code>Unpin</code>, <code>Send</code>, <code>'static</code>, and the <code>impl Future&lt;...&gt;</code> in the method return types? They are all related to <strong>async and concurrency</strong>. I will not expand on them in this post (that is a whole block of content for later), but let me give you a rough orientation so you know what each is responsible for:</p>
+<ul>
+<li><strong><code>AsyncRead</code> / <code>AsyncWrite</code></strong>: async I/O traits provided by tokio — types that have them can <strong>asynchronously</strong> read or write (without blocking the entire thread waiting for data). The three pipes must satisfy them.</li>
+<li><strong><code>Send</code></strong>: a “thread safety” marker — types satisfying <code>Send</code> can safely be <strong>moved from one thread to another</strong>. Remember data races from Post 03? <code>Send</code> is exactly one of the ways Rust manages thread safety at the type level.</li>
+<li><strong><code>Unpin</code></strong>: a detail related to “pinning” in async; skip it for now.</li>
+<li><strong><code>'static</code></strong>: this is a <strong>lifetime</strong> — we planted this seed in Post 04. <code>'static</code> means “this type does not borrow any short-lived data” and can live until the program ends. This is the first concrete lifetime you have met; the full lifetime rules we will cover separately.</li>
+<li><strong><code>impl Future&lt;Output = ...&gt;</code></strong>: <code>impl Trait</code> in return position, meaning “returns some type that implements <code>Future</code>”; <code>Output = ...</code> specifies what this future ultimately produces. <code>wait</code> and <code>kill</code> return <code>Future</code> because “waiting for exit” and “terminating a process” are operations that may take time, best expressed as an async future. The full <code>async</code>/<code>await</code> story is left for the async post.</li>
+</ul>
+<blockquote>
+<p>So when reading that big block of bounds in <code>ManagedProcess</code>, you can temporarily understand the whole thing as one sentence: <strong>“These three pipe types, and this handle itself, must be async-friendly and thread-safe.”</strong> As for the precise meaning of each term, we will cash them in one by one when we reach the async post.</p>
+</blockquote>
+<h2 id="8-recap"><a class="header" href="#8-recap">8. Recap</a></h2>
+<ul>
+<li><strong>trait</strong> is Rust’s “capability contract,” similar to Java/Go’s interface. It lists only method signatures (may have no body), stipulating “what methods must exist,” not “how to implement them.” The <code>Debug</code>/<code>Clone</code>/<code>Copy</code> names inside <code>#[derive(...)]</code> are all traits.</li>
+<li>The syntax for implementing a trait is <strong><code>impl Trait for Type { ... }</code></strong>; once fulfilled, the type gains the methods the trait promises. <code>TokioProcessSpawner</code> implements <code>ProcessSpawner</code>; <code>TokioManagedProcess</code> implements <code>ManagedProcess</code>.</li>
+<li><strong>Associated types (<code>type T;</code>)</strong> are placeholder types a trait leaves for implementors to fill; reference them with <strong><code>Self::T</code></strong>. The colon in <code>type Process: ManagedProcess;</code> is a <strong>bound</strong>, demanding that the filled-in type must also implement <code>ManagedProcess</code>.</li>
+<li><strong><code>Result&lt;T, E&gt;</code></strong> (<code>Ok(T)</code> / <code>Err(E)</code>) is the “success or failure” enum, carrying one more piece of information than <code>Option</code> — the error reason. <code>io::Result&lt;T&gt;</code> is a type alias for it. Rust has no exceptions; failure is a value written into the return type that must be handled. Handling tools are consistent with <code>Option</code> (<code>match</code>, <code>?</code>, <code>unwrap</code>, etc.). <code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code> shows “two layers of uncertainty” stacked.</li>
+<li><strong>Bounds</strong> are introduced with <code>:</code> and combined with <code>+</code>, requiring a type to satisfy multiple traits. <code>Send</code> (thread safety), <code>AsyncRead/Write</code> (async I/O), <code>'static</code> (lifetime) are all bounds related to async and concurrency — collectively deferred to the async post.</li>
+</ul>
+<p>In the next post, we will finally tackle head-on the ownership, borrowing, and lifetimes that we have been building toward since Post 03 — they are the real mechanism behind the borrow checker, and the prerequisite for understanding the <code>Arc</code>, <code>Mutex</code>, and channel passing that appear later in <code>tokio_process.rs</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="post-06-ownership-borrowing-and-lifetimes--the-real-mechanism-behind-the-borrow-checker"><a class="header" href="#post-06-ownership-borrowing-and-lifetimes--the-real-mechanism-behind-the-borrow-checker">Post 06: Ownership, Borrowing, and Lifetimes — the Real Mechanism Behind the Borrow Checker</a></h1>
+<h2 id="1-one-signature-that-simultaneously-encodes-two-data-relationships"><a class="header" href="#1-one-signature-that-simultaneously-encodes-two-data-relationships">1. One signature that simultaneously encodes two “data relationships”</a></h2>
+<p>Ever since Post 03, we have been building toward one thing: that “ownership + lifetime” mechanism behind the borrow checker. We have been laying groundwork for several posts — time for a proper introduction. Our entry point is a signature we already know well — <code>ProcessSpawner</code>’s <code>spawn</code> method:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+<span class="boring">}</span></code></pre>
+<p>Look closely at this line. It actually expresses two radically different “relationships to data” at the same time:</p>
+<ul>
+<li><code>&amp;self</code> — the spawner itself is only <strong>borrowed</strong>; after <code>spawn</code> returns, the spawner is still there, untouched.</li>
+<li><code>spec: ProcessSpec</code> — note the absence of <code>&amp;</code>. This spec list is <strong>handed over entirely</strong>: <code>spawn</code> takes its ownership, and the caller can never use this <code>spec</code> again.</li>
+</ul>
+<p>One borrow, one ownership handover, crammed into the same signature line. Why does Rust go to such lengths to distinguish “temporary borrow” from “complete handover”? What exactly is this mechanism protecting? We start from the deepest foundation — <strong>ownership</strong>.</p>
+<h2 id="2-ownership-every-piece-of-data-has-exactly-one-holder"><a class="header" href="#2-ownership-every-piece-of-data-has-exactly-one-holder">2. Ownership: every piece of data has exactly one “holder”</a></h2>
+<p>The bedrock of Rust’s memory management is a simple rule: <strong>every piece of data, at any given moment, has exactly one owner.</strong> You can think of the owner as “the one person holding the keys” — there is only one key; whoever holds it is in charge of that piece of data.</p>
+<p>When this owner “leaves” (that is, when the scope it resides in ends), the data is automatically <strong>reclaimed</strong> — the Rust term is <strong>drop</strong>, meaning memory is freed and resources are cleaned up. Look at the most basic code:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let s = String::from("hi");   // s is the owner of this data
+}                                 // s leaves scope here -&gt; data dropped, memory freed
+<span class="boring">}</span></code></pre>
+<p>The moment <code>s</code> steps out of those <code>{}</code>, the <code>String</code> it owns is immediately reclaimed. You do not need to write any “free” code at all.</p>
+<p>This step is worth comparing with other languages. Java, Go, and JavaScript rely on <strong>garbage collection (GC)</strong>: when data is no longer used, the runtime automatically discovers and cleans it up in the background — the upside is you do not have to worry about it; the downside is runtime overhead and unpredictable pauses. C relies on <strong>manual management</strong>: you must <code>malloc</code> / <code>free</code> yourself — forget to <code>free</code> and you leak memory, <code>free</code> twice and you crash, use after <code>free</code> and you get a dangling pointer. Rust takes a third path: <strong>ownership + compile-time automatic drop</strong> — neither GC’s runtime overhead nor manual management’s disasters; the moment of release is fixed at compile time (the moment the owner leaves scope).</p>
+<p>Back to <code>ProcessSpec</code>: you write <code>let spec = ProcessSpec::new("echo");</code>, and <code>spec</code> is the owner of this spec list; the <code>Vec</code>, <code>OsString</code>, etc. inside it are all managed by <code>spec</code>. When <code>spec</code> leaves scope, Rust will <strong>recursively</strong> drop everything inside it — you do not need to clean up piece by piece.</p>
+<h2 id="3-move-handing-over-the-keys"><a class="header" href="#3-move-handing-over-the-keys">3. Move: handing over the keys</a></h2>
+<p>Since there is only one key, what happens when you “assign a value to another variable” or “pass a value into a function” — who gets the key? The answer: <strong>you give it away.</strong> For most types, this step is called a <strong>move</strong> — ownership is “relocated” from the original name to the new name, and the original name becomes invalid:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let s1 = String::from("hi");
+let s2 = s1;              // ownership moves from s1 to s2
+// println!("{}", s1);   // compile error (E0382): s1 has been moved, cannot use
+println!("{}", s2);       // s2 is now the owner — no problem
+<span class="boring">}</span></code></pre>
+<p><code>s1</code> handed the keys to <code>s2</code>, and <code>s1</code> itself is “alive in name only” — the compiler will flatly stop any use of <code>s1</code>, reporting <code>borrow of moved value</code>. This is not a runtime check; it is blocked at compile time.</p>
+<blockquote>
+<p>A useful analogy: a <strong>move</strong> is like <strong>giving a book away</strong> — you hand it over and no longer own it. A <strong>borrow</strong> (next section) is like <strong>lending</strong> the book to a friend — ownership stays with you; the friend is only using it temporarily. Rust distinguishes these two cases with different syntax precisely to avoid the confusion of “I thought I was just lending it, how did you walk off with my book?”</p>
+</blockquote>
+<p>That said, not all types behave this way. Post 02 covered <code>Copy</code> types — small, simple types like <code>i32</code> and <code>ProcessStdio</code>; on assignment they are <strong>copied</strong>, not moved:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = 5;
+let b = a;        // i32 is Copy: a copy is made for b, a remains usable
+println!("{} {}", a, b);
+<span class="boring">}</span></code></pre>
+<p>Why can <code>i32</code> be <code>Copy</code> but <code>String</code> cannot? Because <code>i32</code> is just a fixed-size number — copying it is extremely cheap. <code>String</code>, by contrast, has a chunk of heap memory behind it; a naive “copy” would create two owners pointing to the same memory — exactly what Rust wants to avoid. So <code>String</code> defaults to move; <code>i32</code> defaults to copy. (How to make a custom type <code>Copy</code>, and what conditions <code>Copy</code> requires, will be covered later.)</p>
+<p>Now we can answer the opening question: why is <code>spawn</code>’s signature <code>spec: ProcessSpec</code> and not <code>spec: &amp;ProcessSpec</code>? Because <code>spawn</code> wants to <strong>take</strong> this spec list — it reads the program name, arguments, environment variables out of <code>spec</code>, translates them into OS-understandable commands, and then this <code>spec</code> is “used up.” Passing <code>spec</code> by value (moving it in) makes <code>spawn</code> its owner; when <code>spawn</code> finishes, <code>spec</code> is automatically dropped, clean and tidy. If the caller tries to use <code>spec</code> afterward, the compiler flatly refuses — because that spec list has already been “consumed.”</p>
+<h2 id="4-borrow-not-handing-over-the-keys-just-letting-someone-take-a-look"><a class="header" href="#4-borrow-not-handing-over-the-keys-just-letting-someone-take-a-look">4. Borrow: not handing over the keys, just letting someone “take a look”</a></h2>
+<p>But often you do not want to give the data away; you just want to let someone use it temporarily. In that case, you use a <strong>borrow</strong>: you retain ownership and only hand someone a <strong>reference</strong>, letting them follow that reference to look at (or modify) the data. The reference symbols are the <code>&amp;</code> and <code>&amp;mut</code> we met in Post 03:</p>
+<ul>
+<li><code>&amp;T</code> — <strong>shared borrow</strong>: read-only; you can have several at once, because everyone is just “looking,” no mutual interference.</li>
+<li><code>&amp;mut T</code> — <strong>mutable borrow</strong>: writable; but only this one can exist at a time, because “mutation” must be exclusive, lest someone reads half-written data.</li>
+<li><code>*</code> — <strong>dereference</strong>: follow an <code>&amp;</code> to reach the actual value it points to (in many situations Rust does this step for you automatically, so you do not have to write <code>*</code> by hand, but it is the fundamental operation behind references).</li>
+</ul>
+<p>The biggest benefit of borrowing is <strong>ownership is not transferred</strong>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn peek(s: &amp;String) -&gt; usize { s.len() }   // borrow, read-only
+
+let owned = String::from("xyz");
+let len = peek(&amp;owned);     // only lends owned to peek
+println!("still here: {}, len {}", owned, len);   // owned is still fine
+<span class="boring">}</span></code></pre>
+<p>Compare with <code>consume(s: String)</code> — passed by value, <code>owned</code> is moved away and invalid after the call. <strong>That single <code>&amp;</code> difference between <code>&amp;String</code> and <code>String</code> is the difference between “borrowing” and “giving away.”</strong></p>
+<p>In Post 03 we heard the iron law “shared XOR mutable.” Now we can see why it works the way it does:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut s = String::from("hello");
+let r1 = &amp;s;                  // shared borrow
+let r2 = &amp;s;                  // another shared borrow: OK, everyone reads together
+println!("{} {}", r1, r2);   // last use of r1 and r2
+let r3 = &amp;mut s;              // mutable borrow: r1, r2 no longer used afterward, borrow ended, OK
+r3.push_str("!");
+<span class="boring">}</span></code></pre>
+<p>Hold on — there is a detail here that is easy to get stuck on: <code>r1</code> and <code>r2</code> do not “leave” until the end of their enclosing scope, so on what grounds is their borrow “already ended”? This is thanks to Rust’s <strong>Non-Lexical Lifetimes (NLL)</strong>. When the borrow checker decides how long a borrow “lives,” it does not look at “which curly-brace block the name ends in” (that is lexical scope); it looks at the line where it was <strong>last used</strong>. <code>r1</code> and <code>r2</code> last appear on the <code>println!</code> line above; after that, nobody touches them anymore — so their borrow ends at that very moment, and the <code>&amp;mut s</code> on the next line naturally does not conflict.</p>
+<blockquote>
+<p>Continuing the “book lending” analogy: lending a book does not mean you have to walk out of the library (end of scope) for it to count as returned — the moment you <strong>put the book down and stop reading it</strong> counts as returned. The next person (<code>&amp;mut</code>) can borrow it immediately after you put it down, even if you are still standing in the library.</p>
+</blockquote>
+<p>This also contrasts nicely with the rejected example from Post 03. Back then we wrote:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut s = String::from("hi");
+let r1 = &amp;s;          // read-only borrow
+let r2 = &amp;mut s;      // mutable borrow — compiler rejects (E0502)
+println!("{} {}", r1, r2);
+<span class="boring">}</span></code></pre>
+<p>What is the difference? <code>r1</code> is used <strong>again</strong> after the <code>&amp;mut</code> (on that <code>println!</code> line) — its borrow has not ended, yet a mutable borrow arrives, so they collide and the compiler rejects it. Shift the “last use” position and the result is completely different. <strong>NLL releases a borrow the moment it is “genuinely no longer needed,” rather than rigidly dragging it to the end of the scope</strong> — this lets legitimate code pass without relaxing the “no reading and writing at the same time” red line one bit.</p>
+<p>If “someone <code>&amp;</code> reading while someone <code>&amp;mut</code> writing” were allowed, the reader might read a half-written intermediate state — this is precisely the root of <strong>data races</strong> and <strong>iterator invalidation</strong> (the two disasters mentioned in Post 03). The iron law exists to make this “read-while-writing” conflict impossible at the root.</p>
+<p>Let us look at one more real example that combines borrow and move — Post 04’s <code>take_stdin</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;;
+<span class="boring">}</span></code></pre>
+<p>Its receiver is <code>&amp;mut self</code> — it <strong>borrows</strong> the entire handle (mutably, but without taking ownership), not moving the handle itself away. Yet what the method needs to do is <strong>hand over</strong> the stdin pipe inside to the caller. How do you hand over part of it without moving the entire handle? Through the <code>Option::take</code> we met in Post 04: it moves the value out of the <code>Option</code> and leaves <code>None</code> behind. So the delicate operation of “borrow the entire handle, take only one pipe out of it, return the handle itself untouched” is expressed cleanly.</p>
+<h2 id="5-the-borrow-checker-not-your-enemy-but-the-reviewer-who-takes-the-bullet-for-you"><a class="header" href="#5-the-borrow-checker-not-your-enemy-but-the-reviewer-who-takes-the-bullet-for-you">5. The borrow checker: not your enemy, but the reviewer who takes the bullet for you</a></h2>
+<p>All the rules above — sole ownership, old names invalidated after move, borrow’s “shared XOR mutable” — are not documents you are expected to obey on your own. They are all checked one by one <strong>at compile time</strong> by the <strong>borrow checker</strong>. It scans through every ownership and borrow relationship in your code at compile time; when it finds a violation, it refuses to compile.</p>
+<p>Many beginners feel the borrow checker is “picking a fight” and instinctively want to “fight the compiler.” Please shift your mindset: <strong>it is more like a strict but responsible reviewer — every time it stops you, it probably really just saved you from a bug.</strong> For instance:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let s1 = String::from("hi");
+let s2 = s1;
+println!("{}", s1);    // compiler rejects (E0382): borrow of moved value
+<span class="boring">}</span></code></pre>
+<p><code>s1</code> has already handed ownership to <code>s2</code>, yet you still want to use <code>s1</code> — if allowed, at runtime the memory <code>s1</code> points to might have already been modified or even freed by someone else. This is the beginning of <strong>use-after-free</strong>. The borrow checker snuffs out this hidden danger at compile time.</p>
+<p>Or consider trying to return a reference to a local variable — the compiler will also stop you (reporting “missing lifetime” or “borrowed value does not live long enough”) — because it can see that when the function ends, that local variable will be dropped and the returned reference would become a <strong>dangling pointer</strong>. C/C++ programmers have suffered from these bugs for decades; in Rust, they never reach runtime.</p>
+<blockquote>
+<p>So next time the borrow checker complains, do not rush to “make it shut up” — treat it as “maybe there is a real bug here; let me see what it is.” Most of the time, it is stopping you from writing a bug that would blow up your production service at 3 AM.</p>
+</blockquote>
+<p>Here are two examples that give you a concrete feel for what would go wrong if “read-while-writing” were actually allowed — and how the borrow checker stops them at compile time.</p>
+<p><strong>Example 1: while reading, the data being read gets changed</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum StringOrInt { Str(String), Int(i64) }
+
+let mut x = StringOrInt::Str("Hi!".to_string());
+let y = &amp;mut x;                              // mutable borrow of x
+if let StringOrInt::Str(ref insides) = x {   // simultaneously immutable borrow x to match
+    *y = StringOrInt::Int(1);                // changes x to Int(1)
+    println!("x says: {}", insides);         // still wants to use that reference "pointing to a String"
+}
+<span class="boring">}</span></code></pre>
+<p><code>insides</code> was borrowed when <code>x</code> was still <code>Str(...)</code>; it thinks it points to a <code>String</code> (a “pointer to <code>Hi!</code> on the heap + length + capacity” triplet). But immediately afterward, <code>*y = Int(1)</code> changes <code>x</code> into <code>Int(1)</code> — the memory that originally held the <code>String</code> is now overwritten with the integer <code>1</code>. When <code>println!</code> follows <code>insides</code> to dereference, it will interpret that <code>1</code> (and nearby bytes) as a <code>String</code>’s memory address — accessing memory that does not exist near address <code>1</code>, triggering a <strong>segmentation fault</strong>. The borrow checker does not allow this: <code>y</code> (mutable borrow) and <code>insides</code> (immutable borrow) live simultaneously and are both used; rejected at compile time (E0502).</p>
+<p><strong>Example 2: iterating while pushing to the collection</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut buf = vec![1, 2, 3, 4];
+for i in &amp;buf {        // the loop immutably borrows buf
+    buf.push(*i);      // inside the loop body, mutably borrows buf
+}
+<span class="boring">}</span></code></pre>
+<p><code>for i in &amp;buf</code> immutably borrows <code>buf</code> for the entire loop (<code>i</code> is <code>&amp;i32</code>, borrowed from <code>buf</code>). Yet inside the loop body, <code>buf.push(...)</code> wants to mutably borrow <code>buf</code> — iterate while modifying, hits the iron law, compiler rejects.</p>
+<p>This thing compiles in C++, but the consequences are very real: first, <code>push</code>ing while iterating easily leads to an <strong>infinite loop</strong>; worse, when a vector is full and <code>push</code> causes a <strong>reallocation</strong> — moving the entire data to a new address, invalidating the old one — the iterator in your hand still holds the pre-reallocation old address, so the next access is <strong>use-after-free</strong>. Rust stops it at compile time, never giving it a chance to run.</p>
+<h2 id="6-lifetimes-a-references-shelf-life"><a class="header" href="#6-lifetimes-a-references-shelf-life">6. Lifetimes: a reference’s “shelf life”</a></h2>
+<p>Borrowing poses an unavoidable question: <strong>how long can a reference legally live?</strong> The answer is governed by <strong>lifetimes</strong>.</p>
+<p>A lifetime is fundamentally a <strong>compile-time marker</strong> that records “at minimum how long this reference is valid” — more precisely, it guarantees that <strong>a reference will not live longer than the data it points to.</strong> A useful analogy: a reference is like a <strong>library card</strong>, and the data is like the <strong>library</strong>. A library card is only valid while the library is open; once the library closes (data is dropped), the library card becomes worthless. Rust must prove at compile time that every “library card” will not still be used after the “library” has closed.</p>
+<p>Why go to this trouble? To eliminate dangling pointers at the root. Look at an example that fails:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn dangle() -&gt; &amp;String {        // compiler rejects (E0106)
+    let s = String::from("x");
+    &amp;s                            // s is dropped at end of function; &amp;s becomes dangling
+}
+<span class="boring">}</span></code></pre>
+<p>When the function ends, <code>s</code> is dropped; the returned <code>&amp;s</code> points to memory that is already gone — a textbook dangling pointer. The compiler sees it, flatly refuses, and hints “missing lifetime annotation in return type.”</p>
+<p>So why is the real <code>cwd_path</code> legal? Because the reference it returns is borrowed from inside <code>self</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; {
+    self.cwd.as_deref()
+}
+<span class="boring">}</span></code></pre>
+<p>The returned <code>&amp;Path</code> points to a field inside <code>self</code>; as long as <code>self</code> is alive, it is valid. In Post 04 we said “<code>&amp;Path</code> cannot outlive <code>self</code>” — now it has a name: this is a <strong>lifetime binding</strong>. Notice the signature does not write out any lifetime; that is the compiler filling it in for you via <strong>elision rules</strong>: for the common pattern <code>fn f(&amp;self) -&gt; &amp;T</code> (“borrows a <code>&amp;T</code> from <code>&amp;self</code>”), the compiler defaults to binding the returned reference’s lifetime to <code>self</code> — no manual annotation needed.</p>
+<p>When the elision rules are insufficient and you need to personally spell out “which reference lives how long,” you use <strong>explicit lifetime annotation</strong>. The syntax uses an apostrophe-prefixed identifier like <code>'a</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn first&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str { /* ... */ }
+<span class="boring">}</span></code></pre>
+<p>Here <code>'a</code> is a <strong>lifetime parameter</strong> — the same idea as generic parameters (Post 03’s <code>&lt;T&gt;</code>), except generic parameters say “what type is inside” and lifetime parameters say “how long does the reference live.” <code>fn first&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code> means: “the returned reference lives as long as the incoming <code>s</code>.”</p>
+<blockquote>
+<p>You might get stuck here: <code>first</code> only has one input reference, right? The <code>cwd_path(&amp;self) -&gt; &amp;Path</code> above also has only one input reference, and it passed without writing <code>'a</code> — so why would <code>first</code> need it? — Great question. In fact, <strong>it does not need it either.</strong> One of the elision rules says: when a function has <strong>exactly one</strong> input reference, the compiler defaults the return reference to being borrowed from it. So writing <code>fn first(s: &amp;str) -&gt; &amp;str</code> compiles just fine; the version with <code>'a</code> above is just “unfolding” what the elision rules fill in behind the scenes, so you can see what <code>'a</code> looks like. <code>cwd_path</code> follows the same rule (its only input reference is <code>&amp;self</code>), so it likewise needs no hand-written annotation.</p>
+</blockquote>
+<p>So when <strong>must</strong> you hand-write <code>'a</code>? When there is <strong>more than one</strong> input reference, and the compiler cannot figure out which one the return is borrowed from. Look at this function that returns the longer string:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// two input references, compiler rejects (E0106): is the returned &amp;str borrowed from x or y?
+fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
+    if x.len() &gt;= y.len() { x } else { y }
+}
+<span class="boring">}</span></code></pre>
+<p>Two input <code>&amp;str</code> and one output <code>&amp;str</code>, but “is the output bound to <code>x</code> or <code>y</code>” — the compiler cannot guess; maybe you borrowed from <code>x</code>, maybe from <code>y</code>, and the two may not live equally long. At this point the elision rules fall short, and you must declare it yourself:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn longer&lt;'a&gt;(x: &amp;'a str, y: &amp;'a str) -&gt; &amp;'a str {
+    if x.len() &gt;= y.len() { x } else { y }
+}
+<span class="boring">}</span></code></pre>
+<p><code>'a</code> appears in three places here, meaning “both input references and the return reference share the same lifetime <code>'a</code>” — i.e., <code>x</code> and <code>y</code> must live equally long, and the return value follows suit. Only then does the compiler have enough information to check. (A special case within methods: if there are multiple input references but one of them is <code>&amp;self</code> / <code>&amp;mut self</code>, the compiler defaults the return to be borrowed from <code>self</code> — the annotation can still be elided, as long as the return is indeed borrowed from <code>self</code>.)</p>
+<p>Finally, a word on the <code>'static</code> we buried earlier (the first concrete lifetime you met, in Post 05): it is a <strong>special lifetime</strong> meaning “lives until the entire program ends” — i.e., does not borrow any short-lived data. String literals are <code>&amp;'static str</code> because they are baked directly into the program binary and are valid forever. More complex multi-lifetime scenarios (e.g., two inputs each with their own lifetime, needing separate <code>'a</code>, <code>'b</code> annotations) we will expand on later.</p>
+<h2 id="7-tying-it-together-the-full-panorama-of-that-spawn-line"><a class="header" href="#7-tying-it-together-the-full-panorama-of-that-spawn-line">7. Tying it together: the full panorama of that spawn line</a></h2>
+<p>Now let us reread the opening signature. Every part should make sense:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+<span class="boring">}</span></code></pre>
+<ul>
+<li><code>&amp;self</code> — <strong>borrows</strong> the spawner: read-only borrow, does not take ownership; after the call, the spawner remains as-is.</li>
+<li><code>spec: ProcessSpec</code> — <strong>pass by value, i.e. move</strong>: <code>spawn</code> takes ownership of this spec list, reads the configuration from it and translates it into OS commands; when the function ends, <code>spec</code> is dropped. If the caller tries to use <code>spec</code> afterward, the compiler refuses.</li>
+<li><code>Self::Process</code> — returns an <strong>owning</strong> process handle: ownership transfers from <code>spawn</code> to the caller.</li>
+</ul>
+<p>One signature line, two relationships — “borrow” and “move” — spelled out with perfect clarity. This is Rust using types and symbols to put memory relationships on the table in plain sight.</p>
+<h2 id="8-recap-1"><a class="header" href="#8-recap-1">8. Recap</a></h2>
+<ul>
+<li><strong>Ownership</strong>: each piece of data has exactly one owner at any moment; when the owner leaves scope, the data is automatically <strong>drop</strong>ped. Rust requires neither GC’s runtime overhead nor manual management’s leaks and dangling pointers — the moment of release is fixed at compile time.</li>
+<li><strong>Move</strong>: for non-<code>Copy</code> types, assignment or passing moves ownership <strong>away</strong>; the old name is invalidated (E0382). <code>Copy</code> types (like <code>i32</code>) are copied instead. <code>spawn</code> taking <code>spec: ProcessSpec</code> by value is saying “take ownership and consume this spec list.”</li>
+<li><strong>Borrow</strong>: <code>&amp;T</code> shared read-only (multiple allowed), <code>&amp;mut T</code> exclusive writable (only one), <code>*</code> dereferences. Borrowing does not transfer ownership. The iron law “shared XOR mutable” exists to make “read-while-writing” data races / iterator invalidation impossible at the root. A borrow ends at its <strong>last use</strong>, not the end of scope (NLL). <code>take_stdin(&amp;mut self)</code> borrows the handle and uses <code>Option::take</code> to move the pipe out — an elegant marriage of borrow and move.</li>
+<li><strong>The borrow checker</strong> is the compile-time component that enforces these checks; treat it as a responsible reviewer, not an enemy — what it stops are mostly real bugs like use-after-free, dangling pointers, and data races.</li>
+<li><strong>Lifetimes</strong> are a reference’s “shelf life,” guaranteeing a reference does not outlive its data (library card vs. library). <code>cwd_path(&amp;self) -&gt; &amp;Path</code> has the return reference’s lifetime bound to <code>self</code> (usually elided); when elision is insufficient, annotate explicitly with <code>'a</code>, as in <code>fn f&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code>. <code>'static</code> is the special lifetime that lives until the program ends.</li>
+</ul>
+<p>In the next post, we will take this understanding back into <code>tokio_process.rs</code> and see how <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> actually implement this interface contract — where we will encounter <code>Arc</code>, <code>Mutex</code>, and channels, which will read much more smoothly now that we have ownership and borrowing as our foundation.</p>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="terminology"><a class="header" href="#terminology">Terminology</a></h1>
 <p>Terms introduced in each blog post, paired with the post number that first introduces them.</p>
 <div class="table-wrapper">
@@ -350,6 +1239,49 @@ People coming from Python / JS often go looking for an “import the file” act
 <tr><td>dependency (<code>[dependencies]</code>)</td><td>Other crates required for the crate to build and run.</td><td>01</td></tr>
 <tr><td><code>[dev-dependencies]</code></td><td>Dependencies used only for tests, examples, and benchmarks.</td><td>01</td></tr>
 <tr><td><code>Cargo.lock</code></td><td>Auto-generated file pinning exact dependency versions; not hand-written.</td><td>01</td></tr>
+<tr><td><code>enum</code></td><td>A type whose value can only be one of a few listed possibilities.</td><td>02</td></tr>
+<tr><td>variant</td><td>Each possible value listed in an <code>enum</code>.</td><td>02</td></tr>
+<tr><td><code>impl</code> block</td><td>A code block that attaches associated functions/methods to a type.</td><td>02</td></tr>
+<tr><td>associated function / method</td><td>A function inside an <code>impl</code> block; one whose first parameter is <code>self</code> is called a method.</td><td>02</td></tr>
+<tr><td>attribute (<code>#[...]</code>)</td><td>A <code>#[...]</code> directive written above an item, e.g. <code>#[derive(...)]</code>, <code>#[default]</code>.</td><td>02</td></tr>
+<tr><td><code>derive</code></td><td>An attribute that tells the compiler to auto-implement a set of traits using default rules.</td><td>02</td></tr>
+<tr><td>trait</td><td>A capability contract (like an interface); e.g. <code>Debug</code>, <code>Clone</code>, <code>Copy</code>, <code>Default</code>, <code>PartialEq</code>, <code>Eq</code>.</td><td>02</td></tr>
+<tr><td><code>self</code> / <code>Self</code></td><td>Lowercase <code>self</code> is the value the method was called on (receiver); uppercase <code>Self</code> is a type alias for the current type.</td><td>02</td></tr>
+<tr><td>expression / statement</td><td>An expression evaluates to a value; a statement does not. In Rust almost everything is an expression (except <code>let</code>, etc.).</td><td>02</td></tr>
+<tr><td><code>match</code> / pattern matching</td><td>An expression that branches on patterns and evaluates; forces exhaustive coverage of enum variants.</td><td>02</td></tr>
+<tr><td>mutable / immutable</td><td>Rust variables are immutable by default; the <code>mut</code> keyword marks something as mutable.</td><td>03</td></tr>
+<tr><td><code>mut</code></td><td>Keyword that marks a variable or borrow as “can be changed”.</td><td>03</td></tr>
+<tr><td>borrow (<code>&amp;</code> / <code>&amp;mut</code>)</td><td>Temporarily use a value without taking ownership; <code>&amp;</code> shared read-only, <code>&amp;mut</code> exclusive writable.</td><td>03</td></tr>
+<tr><td>borrow checker</td><td>A compile-time component that enforces “shared XOR mutable”, eliminating data races and iterator invalidation.</td><td>03</td></tr>
+<tr><td>zero-cost abstraction</td><td>Using an abstraction imposes no extra runtime cost.</td><td>03</td></tr>
+<tr><td><code>OsString</code></td><td>An OS-native string, not guaranteed to be valid UTF-8, used for CLI arguments and environment variables.</td><td>03</td></tr>
+<tr><td><code>Vec</code></td><td>A heap-allocated growable array (similar to JS <code>Array</code> / Java <code>ArrayList</code> / Go slice).</td><td>03</td></tr>
+<tr><td>generic (<code>&lt;&gt;</code>)</td><td>A type parameter expressing “what type is inside”, e.g. <code>Vec&lt;OsString&gt;</code>.</td><td>03</td></tr>
+<tr><td>tuple (<code>(A, B)</code>)</td><td>Packs several values together in a fixed order into one value.</td><td>03</td></tr>
+<tr><td><code>Option&lt;T&gt;</code> / <code>Some</code> / <code>None</code></td><td>Standard library enum expressing “there may be a value or not”; Rust uses it instead of null.</td><td>04</td></tr>
+<tr><td><code>if let</code></td><td>A concise version of <code>match</code> that executes a branch only when a single pattern matches.</td><td>04</td></tr>
+<tr><td><code>?</code> (question mark operator)</td><td>On <code>None</code>/<code>Err</code> immediately returns early; on <code>Some</code>/<code>Ok</code> unwraps the value and continues.</td><td>04</td></tr>
+<tr><td><code>panic</code></td><td>The program crashes and exits immediately (unrecoverable error).</td><td>04</td></tr>
+<tr><td><code>unwrap</code> / <code>expect</code></td><td>Forcibly extracts the value inside <code>Option</code>/<code>Result</code>; panics if empty.</td><td>04</td></tr>
+<tr><td><code>PathBuf</code> / <code>Path</code></td><td>Cross-platform path types: owned (mutable, appendable) vs. borrowed (read-only slice), backed by <code>OsStr</code>.</td><td>04</td></tr>
+<tr><td><code>deref</code> / <code>as_deref</code></td><td>Downgrades an owned type (e.g. <code>PathBuf</code>) to a borrowed reference (e.g. <code>&amp;Path</code>).</td><td>04</td></tr>
+<tr><td>lifetime</td><td>A compile-time mechanism that guarantees a reference does not “outlive the data it points to” (covered in depth later in this series).</td><td>04</td></tr>
+<tr><td>trait</td><td>A “capability contract” (like an interface), declaring methods a type must provide.</td><td>05</td></tr>
+<tr><td><code>impl Trait for Type</code></td><td>Syntax for implementing a trait for a type.</td><td>05</td></tr>
+<tr><td>associated type (<code>type T;</code>)</td><td>A placeholder type in a trait that the implementor fills in; referenced as <code>Self::T</code>.</td><td>05</td></tr>
+<tr><td>trait bound (<code>:</code> / <code>+</code>)</td><td>Requires a type to satisfy one or more traits.</td><td>05</td></tr>
+<tr><td><code>Result&lt;T, E&gt;</code> / <code>Ok</code> / <code>Err</code></td><td>The “success or failure” enum; on failure carries an error reason.</td><td>05</td></tr>
+<tr><td>type alias</td><td>A shorthand name for a type, e.g. <code>io::Result&lt;T&gt; = Result&lt;T, io::Error&gt;</code>.</td><td>05</td></tr>
+<tr><td><code>Send</code></td><td>A marker trait indicating a type is safe to move across threads.</td><td>05</td></tr>
+<tr><td><code>'static</code></td><td>The “lives until the program ends / does not borrow short-lived data” lifetime.</td><td>05</td></tr>
+<tr><td>ownership</td><td>Each piece of data has exactly one owner at any time; when the owner goes out of scope, the data is dropped.</td><td>06</td></tr>
+<tr><td>owner / drop</td><td>The owner of data; when the owner goes out of scope, the data is automatically released (dropped).</td><td>06</td></tr>
+<tr><td>move</td><td>For non-<code>Copy</code> types, assignment/passing moves ownership away and invalidates the old name.</td><td>06</td></tr>
+<tr><td>borrow (<code>&amp;</code> / <code>&amp;mut</code> / <code>*</code>)</td><td>Using data without transferring ownership; <code>&amp;</code> shared read-only, <code>&amp;mut</code> exclusive writable, <code>*</code> dereferences.</td><td>06</td></tr>
+<tr><td>dangling pointer / use-after-free</td><td>A reference pointing to freed memory; Rust eliminates this at compile time via lifetimes.</td><td>06</td></tr>
+<tr><td>lifetime (<code>'a</code>)</td><td>The “shelf life” of a reference; compile-time guarantee that a reference does not outlive its data; can be annotated explicitly with <code>'a</code> or elided.</td><td>06</td></tr>
+<tr><td>lifetime elision</td><td>The compiler auto-fills common lifetimes according to default rules, saving you from writing them.</td><td>06</td></tr>
+<tr><td>NLL (Non-Lexical Lifetimes)</td><td>Borrows end at the “last use” instead of the end of scope, allowing legitimate borrows to be released earlier.</td><td>06</td></tr>
 </tbody>
 </table>
 </div>

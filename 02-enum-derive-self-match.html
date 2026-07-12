@@ -1,0 +1,483 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Understanding an Enum: derive, self/Self, and match - Learn Rust in 500 Lines</title>
+
+
+        <!-- Custom HTML head -->
+        <template id="lang-icon"><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></svg></span></template>
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/lang-switcher-607aa6b5.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-6e48d295.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Learn Rust in 500 Lines</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/EricWvi/learn-rust-in-500-lines" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="post-02-understanding-an-enum-derive-selfself-and-match-rust-is-an-expression-language"><a class="header" href="#post-02-understanding-an-enum-derive-selfself-and-match-rust-is-an-expression-language">Post 02: Understanding an Enum: derive, self/Self, and match (Rust Is an Expression Language)</a></h1>
+<h2 id="1-first-take-a-look-at-this-real-code"><a class="header" href="#1-first-take-a-look-at-this-real-code">1. First, take a look at this real code</a></h2>
+<p>In this post we step into <code>spec.rs</code> to see how the “spec list” called <code>ProcessSpec</code> is put together. But before we tackle <code>ProcessSpec</code>, one small type that appears repeatedly throughout the list — <code>ProcessStdio</code> — is worth an entire post on its own. It is only a dozen or so lines, yet it ties together several of the most critical concepts in Rust.</p>
+<p>Let us pull its definition out as-is:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Stdio policy used when spawning a child process.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ProcessStdio {
+    /// Create an owned async pipe that callers can take from the managed process.
+    #[default]
+    Piped,
+    /// Inherit the corresponding stdio stream from the parent process.
+    Inherit,
+    /// Connect the corresponding stdio stream to the platform null device.
+    Null,
+}
+
+impl ProcessStdio {
+    pub(crate) fn as_stdio(self) -&gt; Stdio {
+        match self {
+            Self::Piped =&gt; Stdio::piped(),
+            Self::Inherit =&gt; Stdio::inherit(),
+            Self::Null =&gt; Stdio::null(),
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>If you are reading Rust for the first time, this code looks dense. A dozen lines crammed with symbols that make you frown:</p>
+<ul>
+<li>The first line <code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code> — this string of capitalized names reads like an incantation. What is each one saying?</li>
+<li>What does <code>#[default]</code> above <code>Piped</code> actually do?</li>
+<li><code>self</code> (lowercase) inside <code>as_stdio(self)</code>, versus <code>Self::Piped</code> (uppercase) inside the function body — they look like the same thing with a shift key. Are they?</li>
+<li>Most confusing of all: <code>as_stdio</code> clearly declares that it returns <code>Stdio</code>, yet there is no <code>return</code> in the body, and the final <code>match</code> block has no semicolon — how does it “return” anything?</li>
+</ul>
+<p>These questions each stand on their own, but their answers converge on a single place: <strong>Rust is a language built around “expressions.”</strong> Let us start by unpacking the most eye-catching piece — that <code>#[derive(...)]</code> line.</p>
+<h2 id="2-enum-and-impl-first-make-out-the-shapes-of-these-two-pieces"><a class="header" href="#2-enum-and-impl-first-make-out-the-shapes-of-these-two-pieces">2. enum and impl: first, make out the shapes of these two pieces</a></h2>
+<p>Before explaining <code>#[derive(...)]</code>, let us quickly get the overall shape of this code clear, so the details that follow have somewhere to land.</p>
+<p><code>enum ProcessStdio { ... }</code> defines an <strong>enum</strong>. Anyone who has written C, Java, or TypeScript will not find it unfamiliar: it is a type whose “value can only be one of a few listed possibilities.” The type <code>ProcessStdio</code> has only three possible values: <code>Piped</code>, <code>Inherit</code>, and <code>Null</code> — meaning, respectively, that a child process’s standard stream is “create a pipe,” “inherit from the parent,” or “connect to the null device.”</p>
+<p>In Rust, each of these “one-of-a-few” possibilities is called a <strong>variant</strong>. Note: “variant,” not “instance.” <code>Piped</code>, <code>Inherit</code>, <code>Null</code> are the three variants of <code>ProcessStdio</code>.</p>
+<p>Below that, <code>impl ProcessStdio { ... }</code> is an <strong>impl block</strong>. Its job: “attach” some functions to the type <code>ProcessStdio</code>. For example, <code>as_stdio</code> is one such attached function — it converts the three stdio policies into the corresponding settings that the standard library’s <code>std::process::Stdio</code> needs.</p>
+<blockquote>
+<p>A small distinction: functions written inside an <code>impl</code> block are collectively called <strong>associated functions</strong>. If the first parameter is <code>self</code> (lowercase), we habitually call it a <strong>method</strong>, invoked with <code>value.method_name()</code>. If the first parameter is not <code>self</code>, it is closer to what other languages call a “static method” or “constructor,” and you call it with <code>TypeName::function_name()</code>. Here, <code>as_stdio(self)</code> is a method.</p>
+</blockquote>
+<p>With the overall shape clear, let us return to that eye-catching <code>#[derive(...)]</code> line.</p>
+<h2 id="3-behind-that-one-derive-line-what-each-of-the-six-names-does"><a class="header" href="#3-behind-that-one-derive-line-what-each-of-the-six-names-does">3. Behind that one derive line: what each of the six names does</a></h2>
+<p><code>#[derive(...)]</code> is a kind of <strong>attribute</strong> — a line of directives wrapped in <code>#[...]</code>, written above a type definition. <code>derive</code> means “to derive”: its job is to ask the compiler to <strong>automatically implement</strong> for this type the set of capabilities listed inside the parentheses. Each name inside (<code>Debug</code>, <code>Clone</code>, …) is a <strong>trait</strong> — you can think of a trait for now as “a capability contract” or “an interface.” So the overall meaning of this line is:</p>
+<blockquote>
+<p>“Compiler, please auto-implement the six capabilities <code>Debug</code>, <code>Clone</code>, <code>Copy</code>, <code>Default</code>, <code>PartialEq</code>, and <code>Eq</code> for <code>ProcessStdio</code>, using the default rules.”</p>
+</blockquote>
+<p>Otherwise, you would have to hand-write a large chunk of code for each of these capabilities. <code>derive</code> saves you all that boilerplate. Let us go through these six capabilities one by one.</p>
+<p><strong><code>Debug</code>:</strong> makes it printable. With <code>Debug</code>, you can print the value for debugging with <code>{:?}</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>println!("{:?}", ProcessStdio::Piped); // prints: Piped
+<span class="boring">}</span></code></pre>
+<p>Without it, <code>println!</code> flatly refuses.</p>
+<p><strong><code>Clone</code>:</strong> makes it explicitly copyable. With <code>Clone</code>, you can call <code>.clone()</code> to make a fresh copy:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = ProcessStdio::Piped;
+let b = a.clone(); // a is still valid; b is a new copy
+<span class="boring">}</span></code></pre>
+<p><strong><code>Copy</code>:</strong> makes it “copy” rather than “move” on assignment. This one deserves a bit more explanation. In Rust, assigning a value to another variable, or passing it into a function, defaults to a <strong>move</strong> — ownership is “relocated” from the original place, and the original name can no longer be used. But if a type implements <code>Copy</code>, assignment quietly <strong>copies</strong> it instead, and the original name remains usable:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = ProcessStdio::Piped;
+let b = a;          // because ProcessStdio is Copy, this copies rather than moves
+let c = a;          // a is still usable — no problem
+<span class="boring">}</span></code></pre>
+<p>As for “why Rust specifically distinguishes between ‘copy’ and ‘move,’ and how this relates to the ownership system” — that is a whole tough subject, and we will devote a dedicated post to it later. For now, just remember the conclusion: small enums like <code>ProcessStdio</code> that carry no data internally are dirt cheap to copy, so adding <code>Copy</code> is both reasonable and common practice.</p>
+<p><strong><code>PartialEq</code>:</strong> makes it comparable with <code>==</code> and <code>!=</code>. With it, two <code>ProcessStdio</code> values can be compared for equality:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if some_stdio == ProcessStdio::Piped { ... }
+<span class="boring">}</span></code></pre>
+<p><strong><code>Eq</code>:</strong> declares that this equality is “total.” <code>PartialEq</code> lets you “do the comparison”; <code>Eq</code> stamps the type with “my equality relation is strictly reflexive, symmetric, and transitive” — which is almost trivially true for enums. Deriving both together is standard practice. Why <code>PartialEq</code> and <code>Eq</code> need to be separate will only make sense when we get to floating-point numbers (<code>f32</code>/<code>f64</code>’s <code>NaN</code> does not satisfy reflexivity, so you cannot derive <code>Eq</code>). For now, treat “<code>PartialEq + Eq</code> = full equality.”</p>
+<p><strong><code>Default</code>:</strong> gives it a “default value.” With it, you can use <code>ProcessStdio::default()</code> to get a default instance. But an enum has several variants — how does the compiler know which one should be the default? That is where that <code>#[default]</code> line above <code>Piped</code> comes in:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[default]
+Piped,
+<span class="boring">}</span></code></pre>
+<p><code>#[default]</code> is a marker that tells the compiler: “when <code>derive(Default)</code>, return this variant.” So:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let d = ProcessStdio::default();
+assert_eq!(d, ProcessStdio::Piped); // holds
+<span class="boring">}</span></code></pre>
+<blockquote>
+<p>If you <code>#[derive(Default)]</code> an enum but forget to mark any variant with <code>#[default]</code>, the compiler will flat-out error. An enum’s <code>Default</code> must explicitly point to one variant — the compiler will not guess.</p>
+</blockquote>
+<p>Stringing the six capabilities and <code>#[default]</code> together: that incantation-like line <code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code> says something perfectly plain: make this enum printable, copyable, copied-on-assignment-not-moved, defaultable, and equality-comparable. Each one is an everyday capability; <code>derive</code> just bundles them up and auto-generates the code.</p>
+<h2 id="4-self-and-self-lowercase-is-the-value-uppercase-is-the-type"><a class="header" href="#4-self-and-self-lowercase-is-the-value-uppercase-is-the-type">4. self and Self: lowercase is “the value,” uppercase is “the type”</a></h2>
+<p>Now back to the method itself. The signature of <code>as_stdio</code> is:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub(crate) fn as_stdio(self) -&gt; Stdio
+<span class="boring">}</span></code></pre>
+<p>Here we have <code>self</code> (lowercase); and inside the function body we see <code>Self</code> (uppercase):</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>match self {
+    Self::Piped =&gt; ...,
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>These two — one capital, one lowercase — are different things.</p>
+<p><strong><code>self</code> (lowercase) is “the value.”</strong> It is the value that the method was called on. When you write <code>my_stdio.as_stdio()</code>, the <code>self</code> inside <code>as_stdio</code> represents that value <code>my_stdio</code>. In other languages, this role is usually called <code>this</code> (Java/C++/C#) or <code>self</code> (Python); Rust just writes it explicitly as the first parameter.</p>
+<p>There are three ways to write <code>self</code> in Rust, and the differences matter enough to learn them all at once:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Form</th><th>Meaning</th><th>Can the original value still be used after the call?</th></tr>
+</thead>
+<tbody>
+<tr><td><code>self</code></td><td>Takes the value directly (moves ownership)</td><td>No, it is consumed</td></tr>
+<tr><td><code>&amp;self</code></td><td>Borrows, read-only without modifying</td><td>Yes, the original is untouched</td></tr>
+<tr><td><code>&amp;mut self</code></td><td>Borrows, can be modified</td><td>Yes, but exclusively during the call</td></tr>
+</tbody>
+</table>
+</div>
+<p>Look back at the code. <code>as_stdio(self)</code> uses the first form, <code>self</code> — it directly takes the value. For a <code>Copy</code> type this does not matter (it will be copied anyway), but semantically it says “I consume this value and use it to compute a result.” In <code>ProcessSpec</code>’s impl block you will see heavy use of the other two:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Inside ProcessSpec's impl block
+pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+
+pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self {
+    self.stdin = stdin;
+    self
+}
+
+pub fn stdin_policy(&amp;self) -&gt; ProcessStdio {
+    self.stdin
+}
+<span class="boring">}</span></code></pre>
+<p><code>stdin(mut self) -&gt; Self</code> takes the old <code>self</code>, modifies it, and returns a new one — this is the very common <strong>builder pattern</strong> in Rust: each configuration method “consumes the old value, returns the new one,” so you can chain them:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let spec = ProcessSpec::new("echo")
+    .arg("hello")
+    .stdin(ProcessStdio::Null)
+    .stdout(ProcessStdio::Piped);
+<span class="boring">}</span></code></pre>
+<p>And <code>stdin_policy(&amp;self)</code> uses <code>&amp;self</code> — it only borrows to read, does not consume <code>spec</code>, so <code>spec</code> survives the call.</p>
+<p><strong><code>Self</code> (uppercase) is “the type.”</strong> It is an alias for “the type of the current <code>impl</code> block.” Inside <code>impl ProcessStdio</code>, <code>Self</code> is equivalent to <code>ProcessStdio</code>. So writing <code>Self::Piped</code> in the function body is exactly the same as writing <code>ProcessStdio::Piped</code> — just shorter, and you do not need to chase down every usage if the type name changes later. Similarly, <code>stdin(...) -&gt; Self</code> means “returns a <code>ProcessSpec</code>,” and <code>new(...) -&gt; Self</code> does too.</p>
+<p>One sentence to remember: <strong><code>self</code> is “this value of mine,” <code>Self</code> is “this type of mine.”</strong></p>
+<h2 id="5-how-does-match-without-a-semicolon-return-a-value"><a class="header" href="#5-how-does-match-without-a-semicolon-return-a-value">5. How does match without a semicolon “return” a value?</a></h2>
+<p>This is the most counter-intuitive, yet most worth-understanding, part of this code. <code>as_stdio</code> declares that it returns <code>Stdio</code>, yet the function body looks like this:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub(crate) fn as_stdio(self) -&gt; Stdio {
+    match self {
+        Self::Piped =&gt; Stdio::piped(),
+        Self::Inherit =&gt; Stdio::inherit(),
+        Self::Null =&gt; Stdio::null(),
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>No <code>return</code>. The final <code>match</code> has no semicolon. How does it become the return value?</p>
+<p>The answer lies in one summary: <strong>Rust is a language built around “expressions.”</strong> In many other languages, <code>match</code>/<code>switch</code> is merely a <strong>statement</strong> — “execute a different branch depending on the situation” — it runs and is done, producing no value. But in Rust, <code>match</code> is an <strong>expression</strong> — it <strong>evaluates to a value</strong>. Each <code>=&gt;</code> right-hand side is an expression, and the <code>match</code> as a whole evaluates to the result of whichever branch is taken.</p>
+<p>Since <code>match</code> is an expression that evaluates, it can serve as the return value of a function all by itself — <strong>as long as it is the last expression in the function body, and there is no semicolon after it.</strong> The Rust rule is: the last expression in a function body (or any code block) automatically becomes the return value of that function (or block). No <code>return</code> needed. So whichever of the three <code>Stdio::piped()</code> etc. gets hit, the <code>match</code> evaluates to the corresponding <code>Stdio</code>, and the entire function returns it.</p>
+<p>This “no semicolon means a value” rule is not limited to <code>match</code>. Once you accept it, many Rust idioms suddenly click:</p>
+<p><strong><code>if</code> is also an expression:</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let x = if condition { 1 } else { 2 };
+<span class="boring">}</span></code></pre>
+<p>In Rust, <code>if</code> directly produces a value and can be assigned to a variable. This is not possible in Python or Java (where <code>if</code> is a pure statement that produces no value).</p>
+<p><strong>A code block <code>{}</code> is also an expression:</strong> a <code>{}</code> block evaluates to its <strong>last expression without a semicolon</strong>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let result = {
+    let a = 3;
+    let b = 4;
+    a + b          // note: no semicolon
+};                 // result = 7
+<span class="boring">}</span></code></pre>
+<p>So what exactly does the semicolon do? This is the key: <strong>in Rust, putting a semicolon after an expression turns it into a “statement” — it still executes, but its value is discarded.</strong> You can feel the difference for yourself:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = { 5 };    // the block's last expression is 5 (no semicolon), a = 5
+let b = { 5; };   // the last thing is a "5;" statement, block value discarded, b gets ()
+<span class="boring">}</span></code></pre>
+<p>The <code>()</code> (pronounced “unit,” think “no meaningful value”) on the second line is the price of an extraneous semicolon.</p>
+<p>So you can summarize it with a rule that covers almost everything: <strong>in Rust almost “everything is an expression,” with only two categories of exception — <code>let</code> and other variable declarations (they are statements, producing no value), and any “expression with a semicolon added” (adding a semicolon demotes an expression to a statement; its value is discarded).</strong> Exclude those two, and everything else — <code>if</code>, <code>match</code>, code blocks, function bodies — are expressions that evaluate. That is the real meaning of “Rust is an expression language.”</p>
+<blockquote>
+<p>As an aside: Rust also allows you to explicitly write <code>return value;</code> for early returns, which is especially useful when you need to bail out mid-function. It is just that returning at the end of a function is conventionally expressed as “the last expression without a semicolon” — cleaner.</p>
+</blockquote>
+<h2 id="6-back-to-match-what-makes-pattern-matching-so-powerful"><a class="header" href="#6-back-to-match-what-makes-pattern-matching-so-powerful">6. Back to match: what makes pattern matching so powerful</a></h2>
+<p>Since <code>match</code> is an evaluating expression, let us look back at the “pattern matching” part itself — why do Rust programmers like it so much?</p>
+<p><strong>First, it forces you to “cover all cases.”</strong> Look back at <code>as_stdio</code>’s <code>match</code>: the three variants <code>Piped</code>, <code>Inherit</code>, <code>Null</code> are all listed, not one missed. That is not the author being diligent — it is the compiler <strong>enforcing</strong> it: however many variants an enum has, your <code>match</code> must cover that many. Miss one, and the compiler refuses to compile. This means that if someone later adds a fourth variant to <code>ProcessStdio</code>, every single place that uses <code>match</code> on it will immediately be flagged by the compiler, reminding you to add the new branch — a life-saving capability when maintaining large projects.</p>
+<p>If you genuinely only care about a few cases and want to “batch handle” the rest, use the underscore wildcard <code>_</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>match stdio {
+    ProcessStdio::Piped =&gt; "create a pipe",
+    _ =&gt; "other cases",          // wildcard, catches Inherit and Null
+}
+<span class="boring">}</span></code></pre>
+<p>But using <code>_</code> also gives up the benefit of “remind me when new variants are added,” so in situations like <code>as_stdio</code> where every branch should have different behavior, writing out every variant explicitly is the safe choice.</p>
+<p><strong>Second, it matches more than just enums.</strong> <code>match</code> patterns can be integers, string literals, tuples, structs — and can even destructure and bind inner data while matching. A few examples:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Matching integers
+let label = match exit_code {
+    0 =&gt; "success",
+    _ =&gt; "failure",
+};
+
+// Matching tuples — compares two values at once
+let both = match (a_ready, b_ready) {
+    (true, true) =&gt; "both ready",
+    (false, false) =&gt; "neither ready",
+    _ =&gt; "one ready",
+};
+
+// Matching and destructuring a struct
+struct Point { x: i32, y: i32 }
+match point {
+    Point { x: 0, y } =&gt; println!("on the y-axis, y = {}", y),
+    Point { x, y }    =&gt; println!("ordinary point ({}, {})", x, y),
+}
+
+// With a guard: extra condition after the pattern
+let kind = match n {
+    v if v &lt; 0 =&gt; "negative",
+    0          =&gt; "zero",
+    _          =&gt; "positive",
+};
+<span class="boring">}</span></code></pre>
+<p>Notice in the third example, <code>Point { x: 0, y }</code> — it simultaneously does two things: requires that <code>x</code> exactly equals 0, and <strong>binds</strong> the value of <code>y</code> to a variable of the same name for use inside that branch. <strong>“Judge, destructure, and extract” all written into that single line of pattern</strong> — this is what makes <code>match</code> far more powerful than an ordinary <code>switch</code>.</p>
+<p>Putting it all together: that plain-looking three-branch <code>match</code> in <code>as_stdio</code> actually wields two abilities at once — “exhaustive enum matching” (a correctness guarantee the compiler watches over) and “evaluating to a <code>Stdio</code> value per variant” (the concise return style made possible by an expression language).</p>
+<h2 id="7-recap"><a class="header" href="#7-recap">7. Recap</a></h2>
+<ul>
+<li><code>ProcessStdio</code> is an <strong>enum</strong> with three <strong>variants</strong> <code>Piped</code>/<code>Inherit</code>/<code>Null</code>; the <code>impl</code> block attaches methods to the type, e.g. <code>as_stdio</code>.</li>
+<li><code>#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]</code> tells the compiler to auto-implement six capabilities: <code>Debug</code> (printable), <code>Clone</code> (explicitly copyable), <code>Copy</code> (copy on assignment, not move — ownership details deferred), <code>PartialEq + Eq</code> (equality comparable), <code>Default</code> (has a default value). <code>#[default]</code> specifies that <code>Default</code> picks the <code>Piped</code> variant.</li>
+<li><strong><code>self</code> (lowercase) is the value</strong>, the object on which the method was called, with three forms: <code>self</code>/<code>&amp;self</code>/<code>&amp;mut self</code> (consume, read-only borrow, mutable borrow). <strong><code>Self</code> (uppercase) is the type</strong>, an alias for the current <code>impl</code> block’s type.</li>
+<li><code>match</code> without a semicolon becomes the return value because <strong>Rust is an expression language</strong>: <code>match</code>, <code>if</code>, code blocks <code>{}</code>, and function bodies are all <strong>expressions</strong> that evaluate. Only <code>let</code> declarations and <strong>expressions with a semicolon</strong> are <strong>statements</strong>.</li>
+<li><code>match</code>’s power comes from <strong>pattern matching</strong>: the compiler enforces exhaustive coverage, <code>_</code> acts as a wildcard, it matches integers/tuples/structs, can destructure and bind while matching, and supports <code>guard</code> conditions.</li>
+</ul>
+<p>In the next post, we will discuss that little loose end we have been avoiding this whole time — <code>mut</code>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="01-crate-module-cargo.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="03-mut-processspec-vec.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="01-crate-module-cargo.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="03-mut-processspec-vec.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/lang-switcher-bc921a64.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

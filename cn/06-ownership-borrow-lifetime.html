@@ -1,0 +1,439 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>所有权、借用与生命周期 - 500 行代码学会 Rust</title>
+
+
+        <!-- Custom HTML head -->
+        <template id="lang-icon"><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></svg></span></template>
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/lang-switcher-607aa6b5.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-8895d574.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-ea239a89.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">500 行代码学会 Rust</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/EricWvi/learn-rust-in-500-lines" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-06-篇所有权借用与生命周期borrow-checker-背后真正的机制"><a class="header" href="#第-06-篇所有权借用与生命周期borrow-checker-背后真正的机制">第 06 篇：所有权、借用与生命周期——borrow checker 背后真正的机制</a></h1>
+<h2 id="一一行签名里同时藏着两种数据关系"><a class="header" href="#一一行签名里同时藏着两种数据关系">一、一行签名里同时藏着两种“数据关系“</a></h2>
+<p>从第三篇开始，我们就一直在铺垫一件事：borrow checker 背后那套“所有权 + 生命周期“的机制。铺垫了好几篇，是时候正式介绍了。切入点还是一行我们已经很熟悉的签名——<code>ProcessSpawner</code> 的 <code>spawn</code> 方法：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+<span class="boring">}</span></code></pre>
+<p>仔细看这行，它其实同时表达了两种截然不同的“和数据的关系“：</p>
+<ul>
+<li><code>&amp;self</code>——启动器本身只是被<strong>借用</strong>，调用完 <code>spawn</code>，启动器还在原地，原封不动；</li>
+<li><code>spec: ProcessSpec</code>——注意没有 <code>&amp;</code>。这份清单是<strong>整个交出去</strong>了：<code>spawn</code> 拿走了它的所有权，调用方之后再也用不了这份 <code>spec</code>。</li>
+</ul>
+<p>一个借用，一个交出所有权，挤在同一行签名里。为什么 Rust 要把“临时借用”和“彻底交出”分得这么清楚？这套机制到底在保护什么？我们从最底层的那块基石——<strong>所有权</strong>——开始。</p>
+<h2 id="二所有权ownership每份数据只有一个持有人"><a class="header" href="#二所有权ownership每份数据只有一个持有人">二、所有权（ownership）：每份数据只有一个“持有人“</a></h2>
+<p>Rust 内存管理的根基是一条简单的规则：<strong>每一份数据，在任一时刻都只有唯一一个“所有者（owner）“</strong>。你可以把所有者想成“唯一拿着钥匙的人”——钥匙只有一把，谁拿着，这份数据就归谁管。</p>
+<p>当这个所有者“离开“（也就是它所在的作用域结束）时，这份数据会被自动<strong>回收</strong>——Rust 术语叫 <strong>drop</strong>，对应内存被释放、资源被清理。看一段最朴素的代码：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>{
+    let s = String::from("hi");   // s 是这份数据的所有者
+}                                 // s 在这里离开作用域 -&gt; 数据被 drop，内存释放
+<span class="boring">}</span></code></pre>
+<p><code>s</code> 一旦走出那个 <code>{}</code>，它拥有的 <code>String</code> 立刻被回收，不需要你写任何“释放“的代码。</p>
+<p>这一步值得和其他语言对照着看。Java、Go、JavaScript 靠<strong>垃圾回收（GC）</strong>：数据没人用了，由运行时在后台自动发现并清理——好处是你不用管，代价是运行时要额外开销、停顿不可预测。C 靠<strong>手动管理</strong>：你得自己 <code>malloc</code> / <code>free</code>——忘了 <code>free</code> 就内存泄漏，<code>free</code> 两次就崩溃，<code>free</code> 完还在用就是悬空指针。Rust 走了第三条路：<strong>所有权 + 编译期自动 drop</strong>——既不要 GC 的运行时开销，也不要手动管理的灾难，释放的时机在编译期就定死了（所有者离开作用域的那一刻）。</p>
+<p>回到 <code>ProcessSpec</code>：你写 <code>let spec = ProcessSpec::new("echo");</code>，<code>spec</code> 就是这份清单的所有者；它内部的 <code>Vec</code>、<code>OsString</code> 那些，都归 <code>spec</code> 管。等 <code>spec</code> 离开作用域，Rust 会<strong>递归地</strong>把它内部所有东西一起 drop 掉——你不用逐个清理。</p>
+<h2 id="三转移move把钥匙交出去"><a class="header" href="#三转移move把钥匙交出去">三、转移（move）：把钥匙交出去</a></h2>
+<p>既然钥匙只有一把，那“把值赋给另一个变量“或“把值传进函数“时，钥匙给谁？答案是：<strong>给出去</strong>。对大多数类型来说，这一步叫<strong>转移（move）</strong>——所有权从原来的名字“搬“到新名字，原来的名字就此作废：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let s1 = String::from("hi");
+let s2 = s1;              // 所有权从 s1 转移到 s2
+// println!("{}", s1);   // 编译错误（E0382）：s1 已经被 move，不能再用了
+println!("{}", s2);       // s2 现在是所有者，没问题
+<span class="boring">}</span></code></pre>
+<p><code>s1</code> 把钥匙交给了 <code>s2</code>，自己就“名存实亡“——编译器会直接拦下你对 <code>s1</code> 的任何使用，报错 <code>borrow of moved value</code>。这不是运行时检查，是编译期就堵死的。</p>
+<blockquote>
+<p>一个好用的类比：<strong>转移</strong>像把一本书<strong>送人</strong>——书给出去了，你就不再拥有它；<strong>借用</strong>（下一节）像把书<strong>借</strong>给朋友——所有权还在你手里，朋友只是临时拿去看看。Rust 把这两种情况用不同的语法明确区分，恰恰是为了避免“我以为只是借你看看，你怎么把书拿走了“这种混乱。</p>
+</blockquote>
+<p>不过，并不是所有类型都这样。第二篇讲过 <code>Copy</code> 类型——像 <code>i32</code>、<code>ProcessStdio</code> 这种小而简单的类型，赋值时是<strong>复制</strong>一份，而不是转移：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let a = 5;
+let b = a;        // i32 是 Copy：复制一份给 b，a 还能用
+println!("{} {}", a, b);
+<span class="boring">}</span></code></pre>
+<p>为什么 <code>i32</code> 能 Copy 而 <code>String</code> 不能？因为 <code>i32</code> 就是一个固定大小的数字，复制它成本极低；而 <code>String</code> 背后还连着一块堆内存，如果简单地“复制“会变成两个所有者指向同一块内存——那正是 Rust 要避免的。所以 <code>String</code> 默认转移，<code>i32</code> 默认复制。（如何让自定义类型变 <code>Copy</code>，以及 <code>Copy</code> 必须满足什么条件，等以后再细说。）</p>
+<p>现在能回答开头的疑问了：为什么 <code>spawn</code> 的签名是 <code>spec: ProcessSpec</code>，而不是 <code>spec: &amp;ProcessSpec</code>？因为 <code>spawn</code> 要<strong>拿走</strong>这份清单——它把 <code>spec</code> 里的程序名、参数、环境变量读出来，翻译成操作系统认识的命令，然后这份 <code>spec</code> 就“用完了“。把 <code>spec</code> 按值传入（move 进来），<code>spawn</code> 就成了它的所有者；等 <code>spawn</code> 结束，<code>spec</code> 被自动 drop，干净利落。调用方之后再用 <code>spec</code>，编译器直接拒绝——因为那份清单已经被“消费“掉了。</p>
+<h2 id="四借用borrow不交钥匙只让对方看一眼"><a class="header" href="#四借用borrow不交钥匙只让对方看一眼">四、借用（borrow）：不交钥匙，只让对方“看一眼“</a></h2>
+<p>但很多时候你并不想把数据送出去，只是想临时给别人用。这时就用<strong>借用（borrow）</strong>：你保留所有权，只递给别人一个<strong>引用（reference）</strong>，让他顺着引用去看（或改）这份数据。引用的符号就是第三篇见过的 <code>&amp;</code> 和 <code>&amp;mut</code>：</p>
+<ul>
+<li><code>&amp;T</code>——<strong>共享借用</strong>：只读，可以同时有好几个，因为大家只是“看“，互不干扰。</li>
+<li><code>&amp;mut T</code>——<strong>可变借用</strong>：可写，但同一时刻只能有这一个，因为“改“必须独占，免得别人读到改了一半的数据。</li>
+<li><code>*</code>——<strong>解引用</strong>：顺着 <code>&amp;</code> 走到它指向的那个值本身（很多场景下 Rust 会自动做这步，你不用手写 <code>*</code>，但它是引用背后的基本操作）。</li>
+</ul>
+<p>借用最大的好处是<strong>不转移所有权</strong>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn peek(s: &amp;String) -&gt; usize { s.len() }   // 借用，只读
+
+let owned = String::from("xyz");
+let len = peek(&amp;owned);     // 只是把 owned 借给 peek 用
+println!("still here: {}, len {}", owned, len);   // owned 还好好的
+<span class="boring">}</span></code></pre>
+<p>对比 <code>consume(s: String)</code>——按值传入，<code>owned</code> 被 move 走、调用后作废。<strong><code>&amp;String</code> 和 <code>String</code> 这一个 <code>&amp;</code> 之差，就是“借用“和“送出“的差别。</strong></p>
+<p>第三篇我们听过那条铁律“共享不可变，可变不共享“，现在能看清它为什么是这样的了：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut s = String::from("hello");
+let r1 = &amp;s;                  // 共享借用
+let r2 = &amp;s;                  // 再来一个共享借用：OK，大家一起读
+println!("{} {}", r1, r2);   // r1、r2 的最后一次使用
+let r3 = &amp;mut s;              // 可变借用：r1、r2 此后不再使用，借用已结束，OK
+r3.push_str("!");
+<span class="boring">}</span></code></pre>
+<p>等一下，这里有个很容易卡住的细节：<code>r1</code>、<code>r2</code> 明明要到所在作用域结束才“离开“，凭什么说它们的借用“已结束“？这要归功于 Rust 的<strong>非词法生命周期（Non-Lexical Lifetimes，NLL）</strong>。borrow checker 判断一个借用“活多久“，看的不是“它的名字在哪一层大括号里结束“（那叫词法作用域），而是“它<strong>最后一次被使用</strong>在哪一行“。<code>r1</code>、<code>r2</code> 最后一次出现是在上面那行 <code>println!</code>，用过之后就再没人理它们了——所以它们的借用就在那一刻结束，下一行的 <code>&amp;mut s</code> 自然不冲突。</p>
+<blockquote>
+<p>延续前面“借书“的类比：借一本书，不是非得等你走出图书馆大门（作用域结束）才算还，而是你<strong>放下书、不再翻它的那一刻</strong>就算还了。下一个人（<code>&amp;mut</code>）在你放下之后立刻就能借走，哪怕你还站在馆里没出门。</p>
+</blockquote>
+<p>这正好能和第三篇那个被拒绝的例子对照着看。当时写的是：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut s = String::from("hi");
+let r1 = &amp;s;          // 只读借用
+let r2 = &amp;mut s;      // 可变借用 —— 编译器拒绝（E0502）
+println!("{} {}", r1, r2);
+<span class="boring">}</span></code></pre>
+<p>区别在哪？在于 <code>r1</code> 在 <code>&amp;mut</code> <strong>之后</strong>还用了一次（那行 <code>println!</code>）——它的借用还没结束，可变借用就来了，于是撞车，编译器拒绝。把“最后使用“的位置挪一挪，结果就完全不同。<strong>NLL 让借用在“真正不再需要“的那一刻就释放，而不是死板地拖到作用域末尾</strong>——这既让合法的代码能通过，又丝毫不放松“边读边写“那条红线。</p>
+<p>如果允许“一边有人 <code>&amp;</code> 在读、一边有人 <code>&amp;mut</code> 在写”，读者就可能读到写了一半的中间状态——这正是<strong>数据竞争</strong>和<strong>迭代器失效</strong>的根源（第三篇提过的两类灾难）。铁律的存在，就是要把这种“边读边写”的冲突从根上变成不可能。</p>
+<p>再看一个把借用和转移结合的真实例子——第四篇的 <code>take_stdin</code>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;;
+<span class="boring">}</span></code></pre>
+<p>它的接收者是 <code>&amp;mut self</code>——<strong>借用</strong>整个把手（可变地借，但不拿走所有权），不是把把手本身 move 走。但方法要做的事，是把里面的 stdin 管道<strong>移交给</strong>调用方。怎么在不拿走整个把手的前提下，把里面的一部分交出去？靠的就是第四篇认识的 <code>Option::take</code>：它从 <code>Option</code> 里把值 move 出来、原地留下 <code>None</code>。于是“借走整个把手、只取走其中一根管道、把手本身还给人家“这个细腻的操作，就被干净地表达出来了。</p>
+<h2 id="五borrow-checker它不是敌人是替你挡刀的审稿人"><a class="header" href="#五borrow-checker它不是敌人是替你挡刀的审稿人">五、borrow checker：它不是敌人，是替你挡刀的审稿人</a></h2>
+<p>前面所有规则——所有权唯一、转移后旧名作废、借用的“共享不可变可变不共享“——都不是写在文档里靠你自觉遵守的，而是被 <strong>borrow checker（借用检查器）</strong> 在<strong>编译期</strong>一条条查出来的。它在编译时扫一遍你代码里所有的所有权和借用关系，发现违规就拒绝编译。</p>
+<p>很多人初学时觉得 borrow checker 在“找茬“，本能地想“对抗编译器“。请换个心态：<strong>它更像一个严格但尽责的审稿人，每次拦你，多半是真的替你挡下了一个 bug。</strong> 比如：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let s1 = String::from("hi");
+let s2 = s1;
+println!("{}", s1);    // 编译器拒绝（E0382）：borrow of moved value
+<span class="boring">}</span></code></pre>
+<p><code>s1</code> 已经把所有权交给了 <code>s2</code>，你却还想用 <code>s1</code>——如果放行，运行时 <code>s1</code> 指向的内存可能已经被别人动过甚至释放了，这就是**用已释放的内存（use-after-free）**的开端。borrow checker 在编译期就把这个隐患掐了。</p>
+<p>再比如一个想返回局部变量引用的写法，编译器也会拦下（报“缺少生命周期“或“借用了一个被释放的值“）——因为它能看出来，函数结束时那个局部变量会被 drop，返回的引用就成了<strong>悬空指针（dangling pointer）</strong>。C/C++ 程序员苦这些 bug 久矣；在 Rust 里，它们进不到运行时。</p>
+<blockquote>
+<p>💡 所以下次 borrow checker 报错，别急着“让它闭嘴“——把它当成“我这里可能有个真 bug，让我看看是什么“。多数时候，它在阻止你写出一个将来会在凌晨三点炸掉线上服务的错误。</p>
+</blockquote>
+<p>下面这两个例子，能让你具体感受“如果真允许边读边写，会出什么事”——以及 borrow checker 是怎么在编译期就把它们拦下的。</p>
+<p><strong>例一：读着读着，被读的数据被改了</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum StringOrInt { Str(String), Int(i64) }
+
+let mut x = StringOrInt::Str("Hi!".to_string());
+let y = &amp;mut x;                              // 可变借用 x
+if let StringOrInt::Str(ref insides) = x {   // 同时又不可变借用 x 去匹配
+    *y = StringOrInt::Int(1);                // 把 x 改成 Int(1)
+    println!("x says: {}", insides);         // 还想用那个“指向 String 的”引用
+}
+<span class="boring">}</span></code></pre>
+<p><code>insides</code> 是在 <code>x</code> 还是 <code>Str(...)</code> 时借出来的，它以为自己指向一个 <code>String</code>（一串“指向堆上 <code>Hi!</code> 的指针 + 长度 + 容量”）。可紧接着 <code>*y = Int(1)</code> 把 <code>x</code> 改成了 <code>Int(1)</code>——原来放 <code>String</code> 的那块内存，现在被写成了整数 <code>1</code>。等 <code>println!</code> 拿着 <code>insides</code> 去解引用时，它会把那个 <code>1</code>（以及附近的字节）当成 String 的内存地址去读——额外访问了 <code>1</code> 附近根本不存在的内存，触发 <strong>segmentation fault</strong>。borrow checker 不允许这种事发生：<code>y</code>（可变借用）和 <code>insides</code>（不可变借用）同时活着、还都被用到了，编译期直接拒绝（E0502）。</p>
+<p><strong>例二：一边遍历、一边往里塞东西</strong></p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut buf = vec![1, 2, 3, 4];
+for i in &amp;buf {        // 循环不可变地借用了 buf
+    buf.push(*i);      // 循环体内又可变地借用了 buf
+}
+<span class="boring">}</span></code></pre>
+<p><code>for i in &amp;buf</code> 这一行，把 <code>buf</code> 不可变地借出去给整个循环用（<code>i</code> 是 <code>&amp;i32</code>，借自 <code>buf</code>）。可循环体里的 <code>buf.push(...)</code> 又要可变地借 <code>buf</code>——边遍历边改，撞上铁律，编译器拒绝。</p>
+<p>这件事在 C++ 里是能编译过去的，但后果很实在：首先，一边 <code>push</code> 一边遍历，很容易陷入<strong>无限循环</strong>；更要命的是，vector 满了再 <code>push</code> 会<strong>扩容</strong>——把整块数据搬到新地址，旧地址作废。可迭代器手里还攥着扩容前的旧地址，于是下一次访问就是 <strong>use-after-free</strong>。Rust 在编译期就把它拦下，根本不给它跑起来的机会。</p>
+<h2 id="六生命周期lifetime引用的保质期"><a class="header" href="#六生命周期lifetime引用的保质期">六、生命周期（lifetime）：引用的“保质期“</a></h2>
+<p>借用还有一个无法回避的问题：<strong>一个引用，能合法地活多久？</strong> 答案由**生命周期（lifetime）**来管。</p>
+<p>生命周期本质是一个<strong>编译期的标记</strong>，记录“这个引用至少在多长时间内是有效的“——更准确地说，是保证<strong>引用不会比它指向的数据活得更久</strong>。一个好用的类比：引用像一张<strong>借书证</strong>，数据像那家<strong>图书馆</strong>。借书证只在图书馆开门期间有效；图书馆关门了（数据被 drop 了），借书证就自动作废。Rust 在编译期就要证明：每一张“借书证“都不会熬到“图书馆关门“之后还在用。</p>
+<p>为什么要费这个劲？为了从根上消灭悬空指针。看一个会失败的例子：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn dangle() -&gt; &amp;String {        // 编译器拒绝（E0106）
+    let s = String::from("x");
+    &amp;s                            // s 在函数结束时被 drop，这个 &amp;s 就悬空了
+}
+<span class="boring">}</span></code></pre>
+<p>函数结束时 <code>s</code> 被 drop，返回的 <code>&amp;s</code> 指向的内存已经没了——这是教科书级的悬空指针。编译器看出来了，直接拒绝，并提示“返回类型里缺少生命周期标注“。</p>
+<p>那真实的 <code>cwd_path</code> 为什么就合法？因为它返回的引用，是从 <code>self</code> 内部借出来的：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; {
+    self.cwd.as_deref()
+}
+<span class="boring">}</span></code></pre>
+<p>那个返回的 <code>&amp;Path</code> 指向 <code>self</code> 里的字段，只要 <code>self</code> 还活着，它就有效。第四篇我们说过“<code>&amp;Path</code> 不能比 <code>self</code> 活得更久“——现在有了名字：这就是<strong>生命周期绑定</strong>。你看签名里并没把生命周期写出来，那是编译器按**省略规则（elision）**帮你补上了：像 <code>fn f(&amp;self) -&gt; &amp;T</code> 这种“从 <code>&amp;self</code> 借出 <code>&amp;T</code>“的常见模式，编译器默认把返回引用的生命周期绑定到 <code>self</code> 上，不用你手写。</p>
+<p>当省略规则不够用、需要你亲自说明“哪个引用活多久”时，就得<strong>显式标注</strong>生命周期。语法是用一个带撇号的标识符，比如 <code>'a</code>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn first&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str { /* ... */ }
+<span class="boring">}</span></code></pre>
+<p>这里的 <code>'a</code> 是一个<strong>生命周期参数</strong>——和泛型参数（第三篇的 <code>&lt;T&gt;</code>）是同一套思路，只不过泛型参数说的是“装什么类型”，生命周期参数说的是“引用活多久”。<code>fn first&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code> 的意思是：“返回的引用，和传入的 <code>s</code> 活得一样久。”</p>
+<blockquote>
+<p>你可能会卡在这里：<code>first</code> 不也就一个输入引用吗？上面 <code>cwd_path(&amp;self) -&gt; &amp;Path</code> 同样只有一个输入引用，它没写 <code>'a</code> 也过了，凭什么 <code>first</code> 要写？——问得好，其实<strong>它也不用写</strong>。省略规则里有一条：当函数<strong>只有一个</strong>输入引用时，编译器默认返回的引用就借自它。所以 <code>fn first(s: &amp;str) -&gt; &amp;str</code> 这样写完全能编译通过；上面那行带 <code>'a</code> 的版本，只是把省略规则背后补的东西“展开”给你看，让你看清 <code>'a</code> 长什么样。<code>cwd_path</code> 走的也是同一条规则（它唯一的输入引用就是 <code>&amp;self</code>），所以同样不用手写。</p>
+</blockquote>
+<p>那到底什么时候<strong>必须</strong>手写 <code>'a</code>？当输入引用<strong>不止一个</strong>、编译器判断不出返回值借自哪一个时。看这个返回较长字符串的函数：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 两个输入引用，编译器拒绝（E0106）：返回的 &amp;str 到底借自 x 还是 y？
+fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
+    if x.len() &gt;= y.len() { x } else { y }
+}
+<span class="boring">}</span></code></pre>
+<p>两个输入 <code>&amp;str</code>、输出也是 <code>&amp;str</code>，但“输出到底跟 <code>x</code> 还是跟 <code>y</code> 绑定”编译器猜不出——也许你借自 <code>x</code>、也许借自 <code>y</code>，两者存活时长未必相同。这时省略规则失效，你必须亲自声明：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn longer&lt;'a&gt;(x: &amp;'a str, y: &amp;'a str) -&gt; &amp;'a str {
+    if x.len() &gt;= y.len() { x } else { y }
+}
+<span class="boring">}</span></code></pre>
+<p><code>'a</code> 在这里同时出现在三个位置，意思是“两个输入引用和返回引用，共享同一个生命周期 <code>'a</code>”——即要求 <code>x</code>、<code>y</code> 活得一样久，返回值也跟着活那么久。这样编译器才有足够的信息检查。（方法里有个特例：如果输入引用有多个、但其中一个是 <code>&amp;self</code> / <code>&amp;mut self</code>，编译器会默认返回值借自 <code>self</code>，签名照样能省略 <code>'a</code>——前提是返回值确实借自 <code>self</code>。）</p>
+<p>最后补一句之前埋过的 <code>'static</code>（第五篇见到的第一个具体生命周期）：它是一个<strong>特殊的生命周期</strong>，表示“活到整个程序结束”——也就是不借用任何短命的数据。字符串字面量就是 <code>&amp;'static str</code>，因为它们直接编进了程序里，永远有效。更复杂的多生命周期情况（比如两个输入各有各的生命周期、要分别标注 <code>'a</code>、<code>'b</code>），我们以后再展开。</p>
+<h2 id="七串起来spawn-这一行的全景"><a class="header" href="#七串起来spawn-这一行的全景">七、串起来：spawn 这一行的全景</a></h2>
+<p>现在我们重新读一遍开头那行签名，每个部分都应该说得通了：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+<span class="boring">}</span></code></pre>
+<ul>
+<li><code>&amp;self</code>——<strong>借用</strong>启动器：只读地借用，不拿走所有权，调用完启动器原样还在。</li>
+<li><code>spec: ProcessSpec</code>——<strong>按值传入，即转移</strong>：<code>spawn</code> 拿走这份清单的所有权，读出里面的配置翻译成 OS 命令，函数结束时 <code>spec</code> 被 drop。调用方之后再用 <code>spec</code> 会被编译器拒绝。</li>
+<li><code>Self::Process</code>——返回一个<strong>拥有所有权</strong>的进程把手：所有权从 <code>spawn</code> 转移给调用方。</li>
+</ul>
+<p>一行签名，把“借用“和“转移“两种关系交代得清清楚楚——而这正是 Rust 用类型和符号把内存关系写在明面上的体现。</p>
+<h2 id="八小结"><a class="header" href="#八小结">八、小结</a></h2>
+<ul>
+<li><strong>所有权（ownership）</strong>：每份数据任一时刻只有一个所有者；所有者离开作用域时数据被自动 <strong>drop</strong>。Rust 既不要 GC 的运行时开销，也不要手动管理的泄漏与悬空，释放时机编译期定死。</li>
+<li><strong>转移（move）</strong>：对非 <code>Copy</code> 类型，赋值或传参会把所有权<strong>搬走</strong>，旧名作废（E0382）。<code>Copy</code> 类型（如 <code>i32</code>）则是复制。<code>spawn</code> 按 <code>spec: ProcessSpec</code> 传值，就是要“拿走并消费“这份清单。</li>
+<li><strong>借用（borrow）</strong>：<code>&amp;T</code> 共享只读（可多个）、<code>&amp;mut T</code> 独占可写（只能一个）、<code>*</code> 解引用。借用不转移所有权。铁律“共享不可变，可变不共享“是为了让“边读边写“的数据竞争/迭代器失效从根上不可能。借用的结束看<strong>最后一次使用</strong>而非作用域末尾（NLL）。<code>take_stdin(&amp;mut self)</code> 借走把手、用 <code>Option::take</code> 把管道 move 出来，是借用与转移的精妙结合。</li>
+<li><strong>borrow checker</strong> 是编译期执行上述检查的组件；把它当尽责的审稿人，而非敌人——它拦下的多是 use-after-free、悬空指针、数据竞争这类真 bug。</li>
+<li><strong>生命周期（lifetime）</strong> 是引用的“保质期“，保证引用不比数据活得久（借书证 vs 图书馆）。<code>cwd_path(&amp;self) -&gt; &amp;Path</code> 的返回引用生命周期绑定到 <code>self</code>（通常由 elision 省略）；不够时用 <code>'a</code> 显式标注，如 <code>fn f&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code>。<code>'static</code> 是活到程序结束的特殊生命周期。</li>
+</ul>
+<p>下一篇，我们带着这套理解回到 <code>tokio_process.rs</code>，看 <code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code> 怎么把这份接口约定真正实现出来——届时会碰到 <code>Arc</code>、<code>Mutex</code> 和通道，而有了所有权和借用打底，它们读起来会顺很多。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="05-trait-associated-type-result.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="terminology.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="05-trait-associated-type-result.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="terminology.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/lang-switcher-bc921a64.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

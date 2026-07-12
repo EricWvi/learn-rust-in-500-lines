@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-336aa859.js";
+            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-de26c149.js"></script>
+        <script src="toc-6e48d295.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -202,6 +202,49 @@
 <tr><td>dependency (<code>[dependencies]</code>)</td><td>Other crates required for the crate to build and run.</td><td>01</td></tr>
 <tr><td><code>[dev-dependencies]</code></td><td>Dependencies used only for tests, examples, and benchmarks.</td><td>01</td></tr>
 <tr><td><code>Cargo.lock</code></td><td>Auto-generated file pinning exact dependency versions; not hand-written.</td><td>01</td></tr>
+<tr><td><code>enum</code></td><td>A type whose value can only be one of a few listed possibilities.</td><td>02</td></tr>
+<tr><td>variant</td><td>Each possible value listed in an <code>enum</code>.</td><td>02</td></tr>
+<tr><td><code>impl</code> block</td><td>A code block that attaches associated functions/methods to a type.</td><td>02</td></tr>
+<tr><td>associated function / method</td><td>A function inside an <code>impl</code> block; one whose first parameter is <code>self</code> is called a method.</td><td>02</td></tr>
+<tr><td>attribute (<code>#[...]</code>)</td><td>A <code>#[...]</code> directive written above an item, e.g. <code>#[derive(...)]</code>, <code>#[default]</code>.</td><td>02</td></tr>
+<tr><td><code>derive</code></td><td>An attribute that tells the compiler to auto-implement a set of traits using default rules.</td><td>02</td></tr>
+<tr><td>trait</td><td>A capability contract (like an interface); e.g. <code>Debug</code>, <code>Clone</code>, <code>Copy</code>, <code>Default</code>, <code>PartialEq</code>, <code>Eq</code>.</td><td>02</td></tr>
+<tr><td><code>self</code> / <code>Self</code></td><td>Lowercase <code>self</code> is the value the method was called on (receiver); uppercase <code>Self</code> is a type alias for the current type.</td><td>02</td></tr>
+<tr><td>expression / statement</td><td>An expression evaluates to a value; a statement does not. In Rust almost everything is an expression (except <code>let</code>, etc.).</td><td>02</td></tr>
+<tr><td><code>match</code> / pattern matching</td><td>An expression that branches on patterns and evaluates; forces exhaustive coverage of enum variants.</td><td>02</td></tr>
+<tr><td>mutable / immutable</td><td>Rust variables are immutable by default; the <code>mut</code> keyword marks something as mutable.</td><td>03</td></tr>
+<tr><td><code>mut</code></td><td>Keyword that marks a variable or borrow as “can be changed”.</td><td>03</td></tr>
+<tr><td>borrow (<code>&amp;</code> / <code>&amp;mut</code>)</td><td>Temporarily use a value without taking ownership; <code>&amp;</code> shared read-only, <code>&amp;mut</code> exclusive writable.</td><td>03</td></tr>
+<tr><td>borrow checker</td><td>A compile-time component that enforces “shared XOR mutable”, eliminating data races and iterator invalidation.</td><td>03</td></tr>
+<tr><td>zero-cost abstraction</td><td>Using an abstraction imposes no extra runtime cost.</td><td>03</td></tr>
+<tr><td><code>OsString</code></td><td>An OS-native string, not guaranteed to be valid UTF-8, used for CLI arguments and environment variables.</td><td>03</td></tr>
+<tr><td><code>Vec</code></td><td>A heap-allocated growable array (similar to JS <code>Array</code> / Java <code>ArrayList</code> / Go slice).</td><td>03</td></tr>
+<tr><td>generic (<code>&lt;&gt;</code>)</td><td>A type parameter expressing “what type is inside”, e.g. <code>Vec&lt;OsString&gt;</code>.</td><td>03</td></tr>
+<tr><td>tuple (<code>(A, B)</code>)</td><td>Packs several values together in a fixed order into one value.</td><td>03</td></tr>
+<tr><td><code>Option&lt;T&gt;</code> / <code>Some</code> / <code>None</code></td><td>Standard library enum expressing “there may be a value or not”; Rust uses it instead of null.</td><td>04</td></tr>
+<tr><td><code>if let</code></td><td>A concise version of <code>match</code> that executes a branch only when a single pattern matches.</td><td>04</td></tr>
+<tr><td><code>?</code> (question mark operator)</td><td>On <code>None</code>/<code>Err</code> immediately returns early; on <code>Some</code>/<code>Ok</code> unwraps the value and continues.</td><td>04</td></tr>
+<tr><td><code>panic</code></td><td>The program crashes and exits immediately (unrecoverable error).</td><td>04</td></tr>
+<tr><td><code>unwrap</code> / <code>expect</code></td><td>Forcibly extracts the value inside <code>Option</code>/<code>Result</code>; panics if empty.</td><td>04</td></tr>
+<tr><td><code>PathBuf</code> / <code>Path</code></td><td>Cross-platform path types: owned (mutable, appendable) vs. borrowed (read-only slice), backed by <code>OsStr</code>.</td><td>04</td></tr>
+<tr><td><code>deref</code> / <code>as_deref</code></td><td>Downgrades an owned type (e.g. <code>PathBuf</code>) to a borrowed reference (e.g. <code>&amp;Path</code>).</td><td>04</td></tr>
+<tr><td>lifetime</td><td>A compile-time mechanism that guarantees a reference does not “outlive the data it points to” (covered in depth later in this series).</td><td>04</td></tr>
+<tr><td>trait</td><td>A “capability contract” (like an interface), declaring methods a type must provide.</td><td>05</td></tr>
+<tr><td><code>impl Trait for Type</code></td><td>Syntax for implementing a trait for a type.</td><td>05</td></tr>
+<tr><td>associated type (<code>type T;</code>)</td><td>A placeholder type in a trait that the implementor fills in; referenced as <code>Self::T</code>.</td><td>05</td></tr>
+<tr><td>trait bound (<code>:</code> / <code>+</code>)</td><td>Requires a type to satisfy one or more traits.</td><td>05</td></tr>
+<tr><td><code>Result&lt;T, E&gt;</code> / <code>Ok</code> / <code>Err</code></td><td>The “success or failure” enum; on failure carries an error reason.</td><td>05</td></tr>
+<tr><td>type alias</td><td>A shorthand name for a type, e.g. <code>io::Result&lt;T&gt; = Result&lt;T, io::Error&gt;</code>.</td><td>05</td></tr>
+<tr><td><code>Send</code></td><td>A marker trait indicating a type is safe to move across threads.</td><td>05</td></tr>
+<tr><td><code>'static</code></td><td>The “lives until the program ends / does not borrow short-lived data” lifetime.</td><td>05</td></tr>
+<tr><td>ownership</td><td>Each piece of data has exactly one owner at any time; when the owner goes out of scope, the data is dropped.</td><td>06</td></tr>
+<tr><td>owner / drop</td><td>The owner of data; when the owner goes out of scope, the data is automatically released (dropped).</td><td>06</td></tr>
+<tr><td>move</td><td>For non-<code>Copy</code> types, assignment/passing moves ownership away and invalidates the old name.</td><td>06</td></tr>
+<tr><td>borrow (<code>&amp;</code> / <code>&amp;mut</code> / <code>*</code>)</td><td>Using data without transferring ownership; <code>&amp;</code> shared read-only, <code>&amp;mut</code> exclusive writable, <code>*</code> dereferences.</td><td>06</td></tr>
+<tr><td>dangling pointer / use-after-free</td><td>A reference pointing to freed memory; Rust eliminates this at compile time via lifetimes.</td><td>06</td></tr>
+<tr><td>lifetime (<code>'a</code>)</td><td>The “shelf life” of a reference; compile-time guarantee that a reference does not outlive its data; can be annotated explicitly with <code>'a</code> or elided.</td><td>06</td></tr>
+<tr><td>lifetime elision</td><td>The compiler auto-fills common lifetimes according to default rules, saving you from writing them.</td><td>06</td></tr>
+<tr><td>NLL (Non-Lexical Lifetimes)</td><td>Borrows end at the “last use” instead of the end of scope, allowing legitimate borrows to be released earlier.</td><td>06</td></tr>
 </tbody>
 </table>
 </div>
@@ -210,7 +253,7 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="01-crate-module-cargo.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="06-ownership-borrow-lifetime.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -221,7 +264,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="01-crate-module-cargo.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="06-ownership-borrow-lifetime.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 

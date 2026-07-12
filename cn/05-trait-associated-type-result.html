@@ -1,9 +1,9 @@
 <!DOCTYPE HTML>
-<html lang="en" class="light sidebar-visible" dir="ltr">
+<html lang="zh-CN" class="light sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Preface - Learn Rust in 500 Lines</title>
+        <title>trait、关联类型与 Result - 500 行代码学会 Rust</title>
 
 
         <!-- Custom HTML head -->
@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
+            window.path_to_searchindex_js = "searchindex-8895d574.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-6e48d295.js"></script>
+        <script src="toc-ea239a89.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -139,7 +139,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">Learn Rust in 500 Lines</h1>
+                    <h1 class="menu-title">500 行代码学会 Rust</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -179,52 +179,149 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="post-00-before-we-begin--why-500-lines"><a class="header" href="#post-00-before-we-begin--why-500-lines">Post 00: Before We Begin — Why “500 Lines”</a></h1>
-<h2 id="this-series-takes-a-third-path"><a class="header" href="#this-series-takes-a-third-path">This series takes a third path</a></h2>
-<p>You have probably seen two kinds of Rust tutorials. One starts with <code>fn main()</code> and <code>println!</code>, teaching the syntax through disconnected snippets — when you finish, you remember a pile of fragments but have no idea how to assemble them into a real project. The other throws a codebase of tens of thousands of lines at you and says “read the source” — except you cannot even find the entrance.</p>
-<p>This series takes a third path: <strong>we read exactly one project — real, complete, but only about 500 lines long — from its first line to its last.</strong> The concepts in Rust that give people the most headaches — ownership, lifetimes, <code>trait</code>, async, channels — do not appear out of thin air to scare you. Each one shows up in these 500 lines <strong>to solve a specific problem</strong>, and we meet each one right at the scene of that problem.</p>
-<h2 id="where-the-500-lines-comes-from"><a class="header" href="#where-the-500-lines-comes-from">Where the “500 lines” comes from</a></h2>
-<p>First, where the number comes from. The project the whole series is built around is a small crate called <code>process</code> in the <code>code/</code> directory — its job is to “help you spawn and manage child processes.” Excluding tests, its core source totals <strong>512 lines</strong>:</p>
+                        <h1 id="第-05-篇trait关联类型与-result两个-trait-定下整套接口约定"><a class="header" href="#第-05-篇trait关联类型与-result两个-trait-定下整套接口约定">第 05 篇：trait、关联类型与 Result——两个 trait 定下整套接口约定</a></h1>
+<h2 id="一traitsrs-里只有两个-trait却定下了一切"><a class="header" href="#一traitsrs-里只有两个-trait却定下了一切">一、traits.rs 里只有两个 trait，却定下了一切</a></h2>
+<p>前四篇我们一直在 <code>spec.rs</code> 里打转：先是 <code>ProcessStdio</code>，再是 <code>ProcessSpec</code>。现在换一个文件，打开 <code>traits.rs</code>。这个文件很短，只定义了两个 <strong>trait</strong>——<code>ProcessSpawner</code> 和 <code>ManagedProcess</code>——但它们合在一起，把“启动器“和“进程把手“这一整套角色的<strong>接口约定</strong>钉死了。先把原文搬出来：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use std::future::Future;
+use std::io;
+use std::process::ExitStatus;
+
+use tokio::io::{AsyncRead, AsyncWrite};
+
+use crate::ProcessSpec;
+
+pub trait ProcessSpawner {
+    type Process: ManagedProcess;
+
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+}
+
+pub trait ManagedProcess {
+    type Stdin: AsyncWrite + Unpin + Send + 'static;
+    type Stdout: AsyncRead + Unpin + Send + 'static;
+    type Stderr: AsyncRead + Unpin + Send + 'static;
+
+    fn id(&amp;self) -&gt; Option&lt;u32&gt;;
+    fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;;
+    fn take_stdout(&amp;mut self) -&gt; Option&lt;Self::Stdout&gt;;
+    fn take_stderr(&amp;mut self) -&gt; Option&lt;Self::Stderr&gt;;
+    fn try_wait(&amp;self) -&gt; io::Result&lt;Option&lt;ExitStatus&gt;&gt;;
+    fn wait(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;ExitStatus&gt;&gt; + Send + '_;
+    fn kill(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;()&gt;&gt; + Send + '_;
+}
+<span class="boring">}</span></code></pre>
+<p>短短几十行，冒出来的新东西却不少：<code>trait</code> 本身、<code>type Process: ManagedProcess</code>、<code>Self::Process</code>、<code>io::Result</code>、<code>'static</code>、<code>Send</code>、<code>impl Future</code>……别被吓到，它们大多围绕着同一个核心——<strong>trait</strong>。我们从这个最重要的概念开始拆。</p>
+<p>（顺带说明第一行 <code>use crate::ProcessSpec;</code>：<code>crate::</code> 表示“从本 crate 的根开始找“，也就是把第一篇里通过 <code>pub use</code> 摆到门口的 <code>ProcessSpec</code> 取进来用。）</p>
+<h2 id="二trait一份能力契约"><a class="header" href="#二trait一份能力契约">二、trait：一份“能力契约“</a></h2>
+<p><strong>trait</strong>（特征）是 Rust 里定义“能力契约“的工具——它声明“任何一个想要宣称自己具备这种能力的类型，都必须提供这些方法“。写过 Java 或 Go 的人，可以把它想成 <strong>interface</strong>（接口）；写过 TypeScript 的人，可以想成 <code>interface</code> 那种“形状约定“。其实第二篇我们就已经和 trait 打过照面了：<code>#[derive(Debug, Clone, Copy, ...)]</code> 里那每一个名字——<code>Debug</code>、<code>Clone</code>、<code>Copy</code>——都是一个 trait，只不过当时是编译器替我们自动实现的。现在，我们要自己<strong>定义</strong>一个 trait。</p>
+<p>定义一个 trait，本质就是列一张“必须实现的方法清单“：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait ProcessSpawner {
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; ...;
+}
+<span class="boring">}</span></code></pre>
+<p>注意这里只写了方法的<strong>签名</strong>（名字、参数、返回类型），没有方法体——这正是一份契约该有的样子：<strong>trait 只规定“要有什么方法“，不规定“具体怎么实现“</strong>。怎么实现，是具体类型自己的事。</p>
+<p><code>ManagedProcess</code> 同理，它列出了一个“进程把手“必须会做的事：报上自己的 PID（<code>id</code>）、把三条管道交出去（<code>take_stdin</code> / <code>take_stdout</code> / <code>take_stderr</code>）、偷瞄有没有退出（<code>try_wait</code>）、等它退出（<code>wait</code>）、强制终止（<code>kill</code>）。谁能做到这些，谁就有资格当一个 <code>ManagedProcess</code>。</p>
+<h2 id="三怎么实现一个-traitimpl-trait-for-type"><a class="header" href="#三怎么实现一个-traitimpl-trait-for-type">三、怎么“实现“一个 trait：impl Trait for Type</a></h2>
+<p>光有契约不够，得有人来兑现。Rust 里“兑现“一个 trait 的写法是 <strong><code>impl Trait for Type</code></strong>——“我，这个 <code>Type</code>，承诺实现 <code>Trait</code> 要求的所有方法”。真实的兑现代码就在 <code>tokio_process.rs</code> 里：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ProcessSpawner for TokioProcessSpawner {
+    type Process = TokioManagedProcess;
+
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt; {
+        // ...真正启动子进程的具体逻辑...
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>这段在说：“<code>TokioProcessSpawner</code> 这个类型，正式应聘 <code>ProcessSpawner</code> 岗位”，并提供了 <code>spawn</code> 方法的具体实现。一旦兑现，你就能在一个 <code>TokioProcessSpawner</code> 上调用 <code>.spawn(...)</code>——因为编译器看到了这份 <code>impl</code>，知道它确实有这个方法。</p>
+<p><code>ManagedProcess</code> 的兑现也是同样的套路：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl ManagedProcess for TokioManagedProcess {
+    type Stdin = ChildStdin;
+    type Stdout = ChildStdout;
+    type Stderr = ChildStderr;
+
+    fn id(&amp;self) -&gt; Option&lt;u32&gt; { ... }
+    fn take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt; { ... }
+    // ...其余方法...
+}
+<span class="boring">}</span></code></pre>
+<p>这里每一行 <code>type Stdin = ChildStdin;</code> 都是在“填空“——填的是 trait 里留出的<strong>关联类型</strong>。这就引出下一个概念。</p>
+<h2 id="四关联类型type-process-是在留一个空"><a class="header" href="#四关联类型type-process-是在留一个空">四、关联类型：<code>type Process</code> 是在留一个“空“</a></h2>
+<p>再看 trait 定义里的这一行：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub trait ProcessSpawner {
+    type Process: ManagedProcess;
+    fn spawn(&amp;self, spec: ProcessSpec) -&gt; io::Result&lt;Self::Process&gt;;
+}
+<span class="boring">}</span></code></pre>
+<p><code>type Process;</code> 叫作<strong>关联类型（associated type）</strong>。它是 trait 留给实现者的一个“空位“——一个占位类型，由每个具体实现来填。<code>ProcessSpawner</code> 在这里说：“我只关心你启动后能返回’一个进程把手类型’，但具体是哪种把手，由你来定。” 上一节里 <code>type Process = TokioManagedProcess;</code>，就是 <code>TokioProcessSpawner</code> 把这个空位填成了 <code>TokioManagedProcess</code>。</p>
+<p>那 <code>Self::Process</code> 又是什么？还记得第二篇讲过 <code>Self</code> 是“当前这个类型“吗？<code>Self::Process</code> 就是“我自己的关联类型 <code>Process</code>“。所以 <code>fn spawn(...) -&gt; io::Result&lt;Self::Process&gt;</code> 的返回类型是“我自己定义的那种进程把手”——对 <code>TokioProcessSpawner</code> 来说，就是 <code>TokioManagedProcess</code>。</p>
+<p><code>type Process</code> 后面那个冒号 <code>: ManagedProcess</code> 是一个<strong>约束</strong>——它要求：“你填进来的这个 <code>Process</code> 类型，自己也得实现 <code>ManagedProcess</code> 这个 trait。” 换句话说，启动器返回的把手，必须是一个货真价实的 <code>ManagedProcess</code>。约束我们待会细讲。</p>
+<p>💡 为什么用关联类型，而不是干脆把 <code>Process</code> 写成 trait 的泛型参数（像 <code>ProcessSpawner&lt;P&gt;</code>）？一句话的区别：<strong>关联类型意味着“每个实现只有一种选法“</strong>——一个启动器对应唯一一种把手类型，填一次就定了。泛型则允许同一个类型带着不同的类型参数反复实现。这里“一种启动器只有一种把手“的关系，用关联类型表达最贴切；泛型的更细致对比，留到以后讲泛型时再展开。</p>
+<p><code>ManagedProcess</code> 里的 <code>type Stdin</code>、<code>type Stdout</code>、<code>type Stderr</code> 也是关联类型，分别表示“这个把手对外暴露的三条管道是什么具体类型“——<code>TokioManagedProcess</code> 把它们填成了 tokio 的 <code>ChildStdin</code> / <code>ChildStdout</code> / <code>ChildStderr</code>。第四篇见过的 <code>take_stdin(&amp;mut self) -&gt; Option&lt;Self::Stdin&gt;</code>，返回的就是“我自己那种管道“，可能是 <code>Some</code>（还没被取走），也可能是 <code>None</code>（已经被取走了）。</p>
+<h2 id="五result把可能出错也变成一个类型"><a class="header" href="#五result把可能出错也变成一个类型">五、Result：把“可能出错“也变成一个类型</a></h2>
+<p>定义里反复出现的 <code>io::Result&lt;...&gt;</code> 也得正式认识了。第四篇讲 <code>?</code> 操作符时我提过一句 <code>Result</code>，现在把它说清楚。</p>
+<p><code>Result</code> 也是一个标准库枚举，长得和 <code>Option</code> 极像，只是“没有值“的那一支多带了一个<strong>错误原因</strong>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>enum Result&lt;T, E&gt; {
+    Ok(T),    // 成功，带着一个值 T
+    Err(E),   // 失败，带着一个错误 E
+}
+<span class="boring">}</span></code></pre>
+<p>对比一下：<code>Option&lt;T&gt;</code> 是“有 / 没有“，而 <code>Result&lt;T, E&gt;</code> 是“成功 / 失败，失败时还告诉你为什么“。<code>io::Result&lt;T&gt;</code> 是 <code>Result&lt;T, io::Error&gt;</code> 的<strong>类型别名（type alias）</strong>——一个便于书写的简写，专门用于“可能失败的 IO 操作“。</p>
+<p>这背后是 Rust 的一个根本选择：<strong>Rust 没有异常（exception）</strong>。在 Java/Python 里，一个函数可能“正常返回“，也可能“抛异常“——而会抛什么异常，光看函数签名是看不出来的，你得去翻文档或源码。Rust 把“可能失败“直接写进返回类型：<code>fn spawn(...) -&gt; io::Result&lt;Self::Process&gt;</code> 明明白白地告诉你——“我可能启动成功，返回一个把手；也可能失败，返回一个错误。” 失败是一种<strong>普通的值</strong>，必须被处理，逃不掉。</p>
+<p>处理 <code>Result</code> 的工具和处理 <code>Option</code> 几乎一模一样：<code>match</code> 分两个分支处理；<code>?</code> 遇到 <code>Err</code> 就提前返回、遇到 <code>Ok</code> 就把值取出来继续。第四篇认识的那个 <code>?</code>，用在 <code>Result</code> 上就是“把错误往上层传递“。</p>
+<blockquote>
+<p>⚠️ 也和处理 <code>Option</code> 一样：<code>Result</code> 有 <code>.unwrap()</code> / <code>.expect()</code>，遇 <code>Err</code> 同样会 panic。正式代码里请优先用 <code>match</code> 或 <code>?</code> 把错误好好处理掉，而不是赌“这里不会出错“。</p>
+</blockquote>
+<p>有一个细节值得讨论：<code>try_wait</code> 的返回类型是 <code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code>——<code>Result</code> 里套了一个 <code>Option</code>。这不是为了吓人，而是两种“不确定“叠在一起：外层 <code>Result</code> 表示“这次查询本身可能失败“（比如系统调用出错），内层 <code>Option</code> 表示“查询成功了，但进程可能还没退出“。<strong>“出错“和“没退出“是两回事</strong>，所以用两层分别表达。能读懂这种嵌套，说明你对 <code>Result</code> 和 <code>Option</code> 都已经上手了。</p>
+<h2 id="六trait-约束冒号和加号在说什么"><a class="header" href="#六trait-约束冒号和加号在说什么">六、trait 约束：冒号和加号在说什么</a></h2>
+<p>最后我们来拆那些看起来吓人的 <code>:</code> 和 <code>+</code>。以这一行为例：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>type Stdin: AsyncWrite + Unpin + Send + 'static;
+<span class="boring">}</span></code></pre>
+<p><code>type Stdin</code> 后面的 <code>AsyncWrite + Unpin + Send + 'static</code>，是给这个关联类型加的一串<strong>约束（bound）</strong>。冒号读作“必须满足“，<code>+</code> 读作“而且“。整行的意思是：“你填进来的 <code>Stdin</code> 类型，必须同时满足：实现 <code>AsyncWrite</code>、实现 <code>Unpin</code>、实现 <code>Send</code>、并且是 <code>'static</code>。” 少满足一个，编译器就拒绝你的 <code>impl</code>。</p>
+<p>上一节 <code>type Process: ManagedProcess;</code> 里的那个冒号，也是同样的约束——只不过只要求一个 trait 而已。约束让 trait 之间能互相<strong>组合</strong>：一个 trait 可以要求“我关联的那些类型，本身还得满足另外一些 trait“。</p>
+<h2 id="七先做了解的-async-边界统一交代留待以后讨论"><a class="header" href="#七先做了解的-async-边界统一交代留待以后讨论">七、先做了解的 async 边界（统一交代，留待以后讨论）</a></h2>
+<p>那么 <code>AsyncWrite</code>、<code>Unpin</code>、<code>Send</code>、<code>'static</code>，还有方法返回类型里的 <code>impl Future&lt;...&gt;</code>，分别是什么？它们全都和<strong>异步（async）与并发</strong>有关。这一篇我不会展开（那是后面一整块的内容），但给你大致做个介绍，让你知道它们各自负责什么：</p>
 <ul>
-<li><code>src/lib.rs</code> — 7 lines, the front door of the whole crate;</li>
-<li><code>src/spec.rs</code> — 153 lines, describes “what kind of child process to spawn”;</li>
-<li><code>src/traits.rs</code> — 53 lines, defines the interface contract exposed to the outside;</li>
-<li><code>src/tokio_process.rs</code> — 299 lines, the implementation that actually does the work.</li>
+<li><strong><code>AsyncRead</code> / <code>AsyncWrite</code></strong>：tokio 提供的异步读写 trait——具备它们的类型，可以<strong>异步地</strong>读或写（不会因为等数据而卡死整个线程）。三条管道必须满足它们。</li>
+<li><strong><code>Send</code></strong>：一个“线程安全“标记——满足 <code>Send</code> 的类型可以安全地<strong>从一个线程搬到另一个线程</strong>。还记得第三篇提过的数据竞争吗？<code>Send</code> 正是 Rust 在类型层面管控线程安全的方式之一。</li>
+<li><strong><code>Unpin</code></strong>：异步里和“钉住（pin）“相关的一个细节，先跳过。</li>
+<li><strong><code>'static</code></strong>：这是一个<strong>生命周期</strong>——第四篇我们埋过这颗种子。<code>'static</code> 表示“这个类型不借用任何短命的数据“，可以活到程序结束。这是你见到的第一个具体生命周期，完整的生命周期规则我们专门再讲。</li>
+<li><strong><code>impl Future&lt;Output = ...&gt;</code></strong>：返回位置的 <code>impl Trait</code>，意思是“返回某个实现了 <code>Future</code> 的类型“，<code>Output = ...</code> 说明这个 future 最终产出什么。<code>wait</code> 和 <code>kill</code> 之所以返回 <code>Future</code>，是因为“等待退出““终止进程“都是可能耗时的操作，用异步的 future 来表达。<code>async</code>/<code>await</code> 的完整故事，留到异步那一篇。</li>
 </ul>
-<p>512, roughly 500 — that is where the series gets its name.</p>
-<p>Why pick this size in particular? Because it lands on a sweet spot:</p>
+<blockquote>
+<p>所以，读 <code>ManagedProcess</code> 里那一大段约束时，你暂时可以把它整体理解成一句话：<strong>“这三条管道类型，以及这个把手本身，必须是异步友好、且线程安全的。”</strong> 至于每个词的精确含义，我们到异步篇再逐个兑现。</p>
+</blockquote>
+<h2 id="八小结"><a class="header" href="#八小结">八、小结</a></h2>
 <ul>
-<li><strong>Small enough to hold in your head.</strong> You can read 500 lines end to end and remember what each file is responsible for, without being overwhelmed by scale.</li>
-<li><strong>Big enough to be real.</strong> It is not a toy stitched together only for teaching — it has clear layering (description / interface / implementation), genuinely tricky concurrency problems (waiting at the same time for the child to exit, for a “kill” command, and for a “drop” signal), and the compromises and comments made for the sake of correctness. In other words, <strong>it forces you to grapple with the hard parts of Rust.</strong></li>
+<li><strong>trait</strong> 是 Rust 的“能力契约“，类似 Java/Go 的 interface。它只列方法签名（可以没有方法体），规定“必须有什么方法“，不规定“怎么实现“。<code>#[derive(...)]</code> 里那些 <code>Debug</code>/<code>Clone</code>/<code>Copy</code> 都是 trait。</li>
+<li>实现一个 trait 的语法是 <strong><code>impl Trait for Type { ... }</code></strong>；兑现后，该类型就拥有了 trait 承诺的方法。<code>TokioProcessSpawner</code> 实现 <code>ProcessSpawner</code>，<code>TokioManagedProcess</code> 实现 <code>ManagedProcess</code>。</li>
+<li><strong>关联类型（<code>type T;</code>）</strong> 是 trait 留给实现者填的占位类型；用 <strong><code>Self::T</code></strong> 引用它。<code>type Process: ManagedProcess;</code> 的冒号是一个<strong>约束</strong>，要求填入的类型也得实现 <code>ManagedProcess</code>。</li>
+<li><strong><code>Result&lt;T, E&gt;</code></strong>（<code>Ok(T)</code> / <code>Err(E)</code>）是“成功或失败“的枚举，比 <code>Option</code> 多一个错误原因；<code>io::Result&lt;T&gt;</code> 是它的类型别名。Rust 没有异常，失败是写进返回类型的、必须处理的值。处理工具与 <code>Option</code> 一致（<code>match</code>、<code>?</code>、<code>unwrap</code> 等）。<code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code> 这种嵌套表示“两层不确定“叠加。</li>
+<li><strong>约束（bound）</strong> 用冒号 <code>:</code> 引入、用 <code>+</code> 组合，要求类型满足若干 trait。<code>Send</code>（线程安全）、<code>AsyncRead/Write</code>（异步 IO）、<code>'static</code>（生命周期）等都是和异步并发相关的约束，统一留到异步篇细讲。</li>
 </ul>
-<p>In one sentence: 500 lines is small enough to finish, and real enough to be useful once you do.</p>
-<h2 id="you-may-not-even-need-to-open-an-ide"><a class="header" href="#you-may-not-even-need-to-open-an-ide">You may not even need to open an IDE</a></h2>
-<p>The unspoken assumption of many tutorials is “clone the repo, open it in an IDE, and follow along with the source.” This series does not ask you to do that.</p>
-<p>In every article, <strong>the relevant code is pasted into the body verbatim and explained line by line.</strong> You can read on your phone from a couch, on a tablet, or printed on paper — never touching a computer, installing a single tool, or cloning anything — and still follow exactly what each line is doing.</p>
-<p>Of course, if you want to get your hands dirty — this code is real, and it compiles and runs. The <code>code/</code> directory in the repo is the crate itself; run <code>cargo test</code> and every test passes. When a passage makes you curious, you can always open an IDE, change a couple of lines, and see what happens. But that is a <strong>bonus</strong>, not an <strong>entry requirement</strong>.</p>
-<h2 id="from-shallow-to-deep-how-the-path-runs"><a class="header" href="#from-shallow-to-deep-how-the-path-runs">From shallow to deep: how the path runs</a></h2>
-<p>The order of this series is deliberately arranged “outside in, easy to hard.” The rough route looks like this:</p>
-<ol>
-<li><strong>Meet the skeleton first.</strong> What does a Rust project look like? What are <code>crate</code>, <code>lib.rs</code>, <code>mod</code>, and <code>Cargo.toml</code>? We lay the map out first.</li>
-<li><strong>Then read the data.</strong> How is the “spec list” that <code>ProcessSpec</code> represents put together? This is where we meet <code>struct</code>, fields, methods, and Rust’s most distinctive feature — <strong>ownership</strong>.</li>
-<li><strong>Then read the contracts.</strong> How are the two interfaces, <code>ProcessSpawner</code> and <code>ManagedProcess</code>, defined? This is where we meet <code>trait</code> — Rust’s way of expressing a “shared capability.”</li>
-<li><strong>Finally, read the implementation.</strong> In those 299 lines of <code>tokio_process.rs</code>, how do async and channels come together to manage the entire lifecycle of a child process? This is the hardest stretch — but by the time you arrive, you have already built up every prerequisite concept.</li>
-</ol>
-<p>You will notice that each article adds only one more layer on top of the previous one’s foundation. <strong>No article ever uses something it has not yet taught.</strong> That is this series’ promise to you: read it in order, and you will never suddenly run into an unexplained wall.</p>
-<h2 id="how-to-read-effectively"><a class="header" href="#how-to-read-effectively">How to read effectively</a></h2>
-<ul>
-<li><strong>Read in order.</strong> Concepts are layered one on top of the next; skimming ahead makes it easy to lose your footing by the third layer.</li>
-<li><strong>Each term is defined only once.</strong> The first time a term appears, I explain it thoroughly with an everyday analogy and record it in the glossary, <code>terminology.md</code>. From then on I use it freely instead of redefining it. So if a term slips your mind, look it up in that table.</li>
-<li><strong>The code is the main character.</strong> Every article starts from a real piece of code and returns, at the end, to understanding that code. As you read, keep asking yourself: “what problem is this line here to solve?”</li>
-</ul>
-<p>When you are ready, let us begin with Post 01: understanding the skeleton of a Rust project.</p>
+<p>下一篇，我们终于要正面攻克从第三篇一直铺垫到现在的<strong>所有权、借用与生命周期</strong>——它们是 borrow checker 背后真正的机制，也是读懂后面 <code>tokio_process.rs</code> 里那些 <code>Arc</code>、<code>Mutex</code>、通道传递的前提。</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="04-option-pathbuf-borrow.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="01-crate-module-cargo.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="06-ownership-borrow-lifetime.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -234,8 +331,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="04-option-pathbuf-borrow.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="01-crate-module-cargo.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="06-ownership-borrow-lifetime.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
