@@ -19,3 +19,46 @@
 | dependency（`[dependencies]`，依赖） | crate 构建和运行所需的其他 crate。 | 01 |
 | `[dev-dependencies]` | 仅在测试、示例和基准测试中使用的依赖。 | 01 |
 | `Cargo.lock` | Cargo 自动生成的文件，用于钉死依赖的精确版本。 | 01 |
+| `enum`（枚举） | 一种"取值只能是列出的几种之一"的类型。 | 02 |
+| variant（变体） | `enum` 中列出的每一种可能取值。 | 02 |
+| `impl` block（实现块） | 给一个类型挂上关联函数/方法的代码块。 | 02 |
+| associated function（关联函数）/ method（方法） | `impl` 块里的函数；首个参数为 `self` 的叫方法。 | 02 |
+| attribute（属性，`#[...]`） | 写在项上方的 `#[...]` 指令，如 `#[derive(...)]`、`#[default]`。 | 02 |
+| `derive`（派生） | 让编译器按默认规则自动实现一组 trait 的属性。 | 02 |
+| trait | 一种能力契约（类似接口）；如 `Debug`、`Clone`、`Copy`、`Default`、`PartialEq`、`Eq`。 | 02 |
+| `self` / `Self` | 小写 `self` 是方法被调用时的值（接收者）；大写 `Self` 是当前类型别名。 | 02 |
+| expression（表达式）/ statement（语句） | 表达式会求值；语句不产生值。Rust 几乎一切皆表达式（`let` 等除外）。 | 02 |
+| `match` / pattern matching（模式匹配） | 按模式分支并求值的表达式；强制穷尽枚举变体。 | 02 |
+| mutable / immutable（可变 / 不可变） | Rust 变量默认不可变；`mut` 关键字标记可变。 | 03 |
+| `mut` | 标记变量或借用为"可改"的关键字。 | 03 |
+| borrow（借用，`&` / `&mut`） | 不夺走所有权地临时使用一个值；`&` 只读共享，`&mut` 可写独占。 | 03 |
+| borrow checker（借用检查器） | 编译期强制"共享不可变、可变不共享"的组件，杜绝数据竞争与迭代器失效。 | 03 |
+| zero-cost abstraction（零成本抽象） | 使用某种抽象不带来额外的运行时开销。 | 03 |
+| `OsString` | 操作系统原生字符串，不保证合法 UTF-8，用于命令行参数与环境变量。 | 03 |
+| `Vec` | 可变长度的堆数组（类似 JS `Array` / Java `ArrayList` / Go slice）。 | 03 |
+| generic（泛型，`<>`） | 用类型参数表示"装什么类型"，如 `Vec<OsString>`。 | 03 |
+| tuple（元组，`(A, B)`） | 把几个值按固定顺序打包成一个值。 | 03 |
+| `Option<T>` / `Some` / `None` | 标准库枚举，表达"可能有值也可能没有"；Rust 用它取代 null。 | 04 |
+| `if let` | `match` 的精简版，只在匹配到某个模式时执行分支。 | 04 |
+| `?`（问号操作符） | 遇 `None`/`Err` 立刻提前返回，遇 `Some`/`Ok` 取出值继续。 | 04 |
+| `panic` | 程序直接崩溃退出（不可恢复的错误）。 | 04 |
+| `unwrap` / `expect` | 强行取出 `Option`/`Result` 里的值，为空则 panic。 | 04 |
+| `PathBuf` / `Path` | 跨平台路径的"拥有型"（可拼接）与"借用型"（只读切片），底层基于 `OsStr`。 | 04 |
+| `deref` / `as_deref` | 把拥有型（如 `PathBuf`）降级为借用引用（如 `&Path`）。 | 04 |
+| lifetime（生命周期） | 编译期保证引用不"活得比它指向的数据还长"的机制（本系列后续详讲）。 | 04 |
+| trait（特征） | "能力契约"（类似 interface），声明类型必须提供的方法。 | 05 |
+| `impl Trait for Type` | 为某个类型实现某 trait 的语法。 | 05 |
+| associated type（关联类型，`type T;`） | trait 留给实现者填的占位类型，用 `Self::T` 引用。 | 05 |
+| trait bound（约束，`:` / `+`） | 要求某类型满足若干 trait。 | 05 |
+| `Result<T, E>` / `Ok` / `Err` | "成功或失败"的枚举，失败时携带错误原因。 | 05 |
+| type alias（类型别名） | 给类型起的简写名，如 `io::Result<T> = Result<T, io::Error>`。 | 05 |
+| `Send` | 类型可安全跨线程移动的标记 trait。 | 05 |
+| `'static` | "活到程序结束 / 不借用短命数据"的生命周期。 | 05 |
+| ownership（所有权） | 每份数据任一时刻只有一个所有者；所有者离开作用域时数据被 drop。 | 06 |
+| owner / drop | 数据的所有者；所有者离开作用域时自动释放数据（drop）。 | 06 |
+| move（转移） | 非 `Copy` 类型在赋值/传参时所有权搬走、旧名作废。 | 06 |
+| borrow（借用，`&` / `&mut` / `*`） | 不转移所有权地使用数据；`&` 共享只读、`&mut` 独占可写、`*` 解引用。 | 06 |
+| dangling pointer（悬空指针）/ use-after-free | 引用指向已释放的内存；Rust 借生命周期在编译期杜绝。 | 06 |
+| lifetime（生命周期，`'a`） | 引用的"保质期"，编译期保证引用不比数据活得久；可用 `'a` 显式标注或被 elision 省略。 | 06 |
+| lifetime elision（省略） | 编译器按默认规则自动补全常见生命周期，免手写。 | 06 |
+| NLL（非词法生命周期） | 借用在"最后一次使用"处结束，而非作用域末尾；让合法借用更早释放。 | 06 |
