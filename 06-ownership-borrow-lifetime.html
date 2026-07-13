@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
+            window.path_to_searchindex_js = "searchindex-18dc0c4b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-6e48d295.js"></script>
@@ -377,7 +377,6 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
 <li><strong>The borrow checker</strong> is the compile-time component that enforces these checks; treat it as a responsible reviewer, not an enemy — what it stops are mostly real bugs like use-after-free, dangling pointers, and data races.</li>
 <li><strong>Lifetimes</strong> are a reference’s “shelf life,” guaranteeing a reference does not outlive its data (library card vs. library). <code>cwd_path(&amp;self) -&gt; &amp;Path</code> has the return reference’s lifetime bound to <code>self</code> (usually elided); when elision is insufficient, annotate explicitly with <code>'a</code>, as in <code>fn f&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code>. <code>'static</code> is the special lifetime that lives until the program ends.</li>
 </ul>
-<p>In the next post, we will take this understanding back into <code>tokio_process.rs</code> and see how <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> actually implement this interface contract — where we will encounter <code>Arc</code>, <code>Mutex</code>, and channels, which will read much more smoothly now that we have ownership and borrowing as our foundation.</p>
 
                     </main>
 
