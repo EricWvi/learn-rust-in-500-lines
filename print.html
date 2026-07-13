@@ -38,10 +38,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
+            window.path_to_searchindex_js = "searchindex-da33a305.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-6e48d295.js"></script>
+        <script src="toc-1b1423e7.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -1214,7 +1214,163 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
 <li><strong>The borrow checker</strong> is the compile-time component that enforces these checks; treat it as a responsible reviewer, not an enemy — what it stops are mostly real bugs like use-after-free, dangling pointers, and data races.</li>
 <li><strong>Lifetimes</strong> are a reference’s “shelf life,” guaranteeing a reference does not outlive its data (library card vs. library). <code>cwd_path(&amp;self) -&gt; &amp;Path</code> has the return reference’s lifetime bound to <code>self</code> (usually elided); when elision is insufficient, annotate explicitly with <code>'a</code>, as in <code>fn f&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code>. <code>'static</code> is the special lifetime that lives until the program ends.</li>
 </ul>
-<p>In the next post, we will take this understanding back into <code>tokio_process.rs</code> and see how <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> actually implement this interface contract — where we will encounter <code>Arc</code>, <code>Mutex</code>, and channels, which will read much more smoothly now that we have ownership and borrowing as our foundation.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="post-07-impl-trait-in-two-positions--static-dispatch-and-opaque-return-types"><a class="header" href="#post-07-impl-trait-in-two-positions--static-dispatch-and-opaque-return-types">Post 07: <code>impl Trait</code> in Two Positions — Static Dispatch and Opaque Return Types</a></h1>
+<h2 id="1-two-methods-we-have-been-skipping"><a class="header" href="#1-two-methods-we-have-been-skipping">1. Two methods we have been skipping</a></h2>
+<p>Back in Post 03, when we opened <code>spec.rs</code> to read <code>ProcessSpec</code>, we covered its fields and its “modify-and-return-self” builder pattern. But there were two signatures I glossed over entirely:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn arg(mut self, arg: impl Into&lt;OsString&gt;) -&gt; Self {
+    self.args.push(arg.into());
+    self
+}
+
+pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
+    self.envs
+        .iter()
+        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
+}
+<span class="boring">}</span></code></pre>
+<p>First line, <code>arg</code>: the parameter is <code>impl Into&lt;OsString&gt;</code>.
+Second line, <code>envs</code>: the return type is <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code>.</p>
+<p>Both methods use the <code>impl</code> keyword — they look like family. But today we are going to see something counter-intuitive: <strong>these two <code>impl</code>s, though identical in appearance, point in opposite directions</strong> — one hands the “power to choose the type” to the caller, the other keeps it in the implementor’s hands. Once you grasp this difference, you unlock two high-frequency Rust concepts: <strong>static dispatch</strong> and <strong>opaque return types</strong>.</p>
+<h2 id="2-the-same-impl-opposite-directions"><a class="header" href="#2-the-same-impl-opposite-directions">2. The same <code>impl</code>, opposite directions</a></h2>
+<p>The <code>impl Trait</code> syntax literally means “some type that implements <code>Trait</code>.” But depending on where it appears in a function signature, its meaning is completely different. Here is the core comparison:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th><code>impl Trait</code> in input position (parameters)</th><th><code>impl Trait</code> in return position</th></tr>
+</thead>
+<tbody>
+<tr><td>Example</td><td><code>arg: impl Into&lt;OsString&gt;</code></td><td><code>-&gt; impl Iterator&lt;...&gt;</code></td></tr>
+<tr><td>Who decides the concrete type?</td><td><strong>The caller</strong></td><td><strong>The function’s implementor</strong></td></tr>
+<tr><td>Essence</td><td>A kind of generic</td><td>Opaque return type</td></tr>
+<tr><td>Dispatch</td><td>Static dispatch</td><td>Also static dispatch</td></tr>
+</tbody>
+</table>
+</div>
+<p>This table is the skeleton of the whole article. Same <code>impl</code>, one delegates type choice outward, the other hides it inward. The next three sections unpack each in detail.</p>
+<h2 id="3-impl-trait-in-input-position-a-kind-of-generic"><a class="header" href="#3-impl-trait-in-input-position-a-kind-of-generic">3. <code>impl Trait</code> in input position: a kind of generic</a></h2>
+<h3 id="it-is-basically-a-generic"><a class="header" href="#it-is-basically-a-generic">It is basically a generic</a></h3>
+<p><code>arg: impl Into&lt;OsString&gt;</code> — this <code>impl Trait</code> in <strong>parameter type</strong> position is essentially syntactic sugar for a <strong>generic</strong>. It is equivalent to:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn arg&lt;T: Into&lt;OsString&gt;&gt;(mut self, arg: T) -&gt; Self {
+    self.args.push(arg.into());
+    self
+}
+<span class="boring">}</span></code></pre>
+<p>Back in Post 03, when we saw <code>Vec&lt;OsString&gt;</code>, you already encountered generic types; here we have a <strong>generic function</strong>. <code>&lt;T: Into&lt;OsString&gt;&gt;</code> declares a type parameter <code>T</code>, and after the colon comes the constraint — <code>T</code> must implement <code>Into&lt;OsString&gt;</code>. <code>impl Into&lt;OsString&gt;</code> simply merges “declare a type parameter + add a constraint” into one line, saving you from naming it. The two forms are almost entirely equivalent.</p>
+<p>So who decides what <code>T</code> actually is? The answer is <strong>the caller</strong>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>spec.arg("--verbose")            // compiler infers T = &amp;str
+    .arg(String::from("hello")); // compiler infers T = String
+<span class="boring">}</span></code></pre>
+<p>Two calls, and <code>arg</code>’s <code>T</code> is inferred as <code>&amp;str</code> and <code>String</code> respectively — as long as both implement <code>Into&lt;OsString&gt;</code>, they are accepted. The power to choose the type lies with the caller; the function itself only declares “here is what I can accept.”</p>
+<blockquote>
+<p>An analogy: <code>impl Trait</code> in input position is like a checkpoint that says “members only” — whoever comes (which concrete type) is up to you, as long as you have the card (implement that trait).</p>
+</blockquote>
+<h3 id="why-write-it-this-way-into-makes-the-api-more-forgiving"><a class="header" href="#why-write-it-this-way-into-makes-the-api-more-forgiving">Why write it this way: <code>Into</code> makes the API more forgiving</a></h3>
+<p>This also answers a question that has been overdue: why take the parameter as <code>impl Into&lt;OsString&gt;</code> instead of just <code>OsString</code>?</p>
+<p>Because <code>Into&lt;OsString&gt;</code> is a <strong>contract</strong>, and the standard library already implements <code>OsString: From&lt;&amp;str&gt;</code> and <code>OsString: From&lt;String&gt;</code> for the common types — and with <code>From</code>, you automatically get the corresponding <code>Into</code> (this is a built-in rule of the <code>From</code>/<code>Into</code> trait pair), so both <code>&amp;str</code> and <code>String</code> satisfy the contract. By accepting the parameter as <code>impl Into&lt;OsString&gt;</code>, callers can directly pass a string literal or a <code>String</code>, without manually calling <code>.into()</code> each time. This is why <code>ProcessSpec::new("echo")</code> can directly take a <code>&amp;str</code> — if the parameter were rigidly typed as <code>OsString</code>, every call site would need <code>OsString::from("...")</code>, which would be much more tedious.</p>
+<p>This pattern runs through all of <code>ProcessSpec</code>: <code>new(impl Into&lt;OsString&gt;)</code>, <code>cwd(impl Into&lt;PathBuf&gt;)</code>, <code>env(impl Into&lt;OsString&gt;, impl Into&lt;OsString&gt;)</code> — all using <code>Into</code> to widen the entry point. The <code>arg.into()</code> inside <code>arg</code>’s body is precisely “converting the incoming <code>T</code> into the uniform <code>OsString</code>.”</p>
+<h3 id="static-dispatch-and-monomorphization"><a class="header" href="#static-dispatch-and-monomorphization">Static dispatch and monomorphization</a></h3>
+<p>This brings us to the second keyword of this post: <strong>static dispatch</strong>.</p>
+<p>Above, the two <code>arg</code> calls pass in different types. The compiler does not actually generate a single “universal <code>arg</code>” that figures out the type at runtime. What it does is called <strong>monomorphization</strong> — for each concrete type actually passed in, it “copies” a dedicated version of <code>arg</code>: one specialized for <code>&amp;str</code>, one specialized for <code>String</code>. In each copy, <code>T</code> is replaced by a concrete type, and <code>.into()</code> becomes a definite, direct function call targeting that specific type.</p>
+<p>The result: at runtime, there is never any “figure out what <code>T</code> is and which <code>into</code> to call” step — that was nailed down at compile time. Every call in each copy is a straightforward, direct jump. This approach — where which method to call is decided at compile time, resulting in a direct jump — is <strong>static dispatch</strong>. It carries zero runtime overhead, and is exactly the <strong>zero-cost abstraction</strong> we mentioned in Post 03, applied to dispatch.</p>
+<p>Zero overhead is the upside. What is the cost? <strong>Binary size</strong>: for every type used, you get an extra copy of the code. The compiled binary grows. For a tiny function like <code>arg</code>, it hardly matters, but for large generic functions, monomorphization can visibly bloat the binary. This is a common Rust trade-off — trading space for zero runtime cost.</p>
+<h3 id="a-subtle-but-important-difference"><a class="header" href="#a-subtle-but-important-difference">A subtle but important difference</a></h3>
+<p>There is one practical difference between input-position <code>impl Trait</code> and named generics <code>&lt;T: ...&gt;</code>: with <code>impl Trait</code>, the type parameter is <strong>anonymous</strong> — you cannot refer to its name. This imposes a limitation: when you need “two parameters must be the same type,” <code>impl Trait</code> cannot do it:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// With impl Trait: a and b can be different types
+fn both(a: impl PartialEq, b: impl PartialEq) {}
+
+// You must use a named generic to enforce a and b having the same type
+fn both_same&lt;T: PartialEq&gt;(a: T, b: T) {}
+<span class="boring">}</span></code></pre>
+<p>In <code>both</code>, the two <code>impl PartialEq</code> are independent anonymous types, unrelated to each other. <code>both_same</code> uses a single named <code>T</code> to bind them to the same type. So <code>impl Trait</code> saves keystrokes but sacrifices the ability to name the type. This difference will come up again in the pitfalls section.</p>
+<h2 id="4-impl-trait-in-return-position-opaque-return-types"><a class="header" href="#4-impl-trait-in-return-position-opaque-return-types">4. <code>impl Trait</code> in return position: opaque return types</a></h2>
+<p>Now let’s look at <code>envs</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
+    self.envs
+        .iter()
+        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
+}
+<span class="boring">}</span></code></pre>
+<p>The <code>impl Iterator&lt;...&gt;</code> on the return type looks like the parameter <code>impl Trait</code>, but they are not the same thing. This is called an <strong>opaque return type</strong> — also known as RPIT (Return-Position Impl Trait).</p>
+<h3 id="who-decides-the-concrete-type-the-implementor"><a class="header" href="#who-decides-the-concrete-type-the-implementor">Who decides the concrete type? The implementor</a></h3>
+<p>This time, the power to choose the type lies with <strong>the function’s implementor</strong> (the person writing the function). The concrete type returned by the function body is whatever <code>self.envs.iter().map(...)</code> actually evaluates to. But the external caller <strong>cannot see</strong> this concrete type — the signature only tells you “it returns something that implements <code>Iterator</code>, yielding a <code>(&amp;OsStr, &amp;OsStr)</code> each iteration.”</p>
+<p>If we had to spell out that hidden concrete type in full, it would look roughly like:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Heavily simplified: the real type wraps a closure inside Map
+std::slice::Iter&lt;'_, (OsString, OsString)&gt;
+<span class="boring">}</span></code></pre>
+<p>And the closure type inside <code>.map(...)</code> — the Rust compiler generates a unique <strong>anonymous type</strong> for every closure, a type you simply cannot name in source code. So the real return type is genuinely unwritable in a signature. <code>impl Iterator</code> neatly sidesteps the problem: <strong>I guarantee the returned thing implements <code>Iterator</code>; don’t worry about what concretely it is.</strong></p>
+<h3 id="why-hide-it"><a class="header" href="#why-hide-it">Why hide it</a></h3>
+<p>Hiding the type brings two concrete benefits.</p>
+<p>First, <strong>encapsulation</strong>. The caller only depends on the contract “it is an <code>Iterator</code>,” not on the concrete type. If someday <code>envs</code>’s internal implementation changes — say, constructing the iterator differently — as long as the new type still implements <code>Iterator</code> and yields <code>(&amp;OsStr, &amp;OsStr)</code>, not a single line of caller code needs to change. The concrete type is walled off inside the API boundary; the author can swap it at will. That is the freedom encapsulation provides.</p>
+<p>Second, <strong>avoid writing unnamable or inconvenient type names</strong>. The sort of long, closure-laden types shown above are ugly to write by hand and error-prone; closure types are fundamentally unnamable. <code>impl Trait</code> spares the author from exposing these internal details in the signature.</p>
+<blockquote>
+<p>Analogy: <code>impl Trait</code> in return position is like a “dispensing slot” — you only care that what comes out is “something iterable” (satisfies <code>Iterator</code>). Which assembly line the factory uses internally is the factory’s business, not yours.</p>
+</blockquote>
+<h3 id="its-restriction-only-one-concrete-type-per-invocation"><a class="header" href="#its-restriction-only-one-concrete-type-per-invocation">Its restriction: only one concrete type per invocation</a></h3>
+<p>Opaque return types have a hard rule: <strong>a single invocation can only return one definite concrete type</strong>. That means you cannot return different concrete types from different branches based on a runtime condition:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn make_iter(flag: bool) -&gt; impl Iterator&lt;Item = i32&gt; {
+    if flag {
+        vec![1, 2, 3].into_iter()   // concrete type A: std::vec::IntoIter&lt;i32&gt;
+    } else {
+        [4, 5].into_iter()           // concrete type B: a different iterator type — compiler rejects
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>The two branches return different concrete types, and the compiler rejects it outright — because <code>impl Trait</code> promises “one specific concrete type,” not “pick one from several.” If you genuinely need “return a different type depending on the runtime situation,” you need a different tool: the <code>dyn Trait</code> (trait object) covered in the next section.</p>
+<p>💡 Worth clarifying a common point of confusion: <strong>return-position <code>impl Trait</code> does not introduce dynamic dispatch</strong>. The concrete type is known at compile time (crystal clear to the author), just hidden from the caller. Calling its methods is still a direct-jump static dispatch, zero overhead. What actually introduces runtime overhead is explicitly writing <code>dyn</code> — that is the next section’s topic.</p>
+<h2 id="5-static-dispatch-vs-dynamic-dispatch-impl-trait-and-dyn-trait"><a class="header" href="#5-static-dispatch-vs-dynamic-dispatch-impl-trait-and-dyn-trait">5. Static dispatch vs. dynamic dispatch: <code>impl Trait</code> and <code>dyn Trait</code></a></h2>
+<p>Earlier we said input-position <code>impl Trait</code> (and generics) use <strong>static dispatch</strong> — the compiler copies a version of the code for each type. So is there a “don’t copy, decide at runtime” approach? Yes: the <strong>trait object</strong>, written as <code>dyn Trait</code>. It uses <strong>dynamic dispatch</strong>.</p>
+<p>A side-by-side comparison:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use std::fmt::Debug;
+
+// Static dispatch: one code copy per type, method calls are direct jumps
+fn print_static(value: &amp;impl Debug) {
+    println!("{:?}", value);
+}
+
+// Dynamic dispatch: a single copy of code, method address looked up at runtime
+fn print_dyn(value: &amp;dyn Debug) {
+    println!("{:?}", value);
+}
+<span class="boring">}</span></code></pre>
+<p>The <code>dyn</code> in <code>dyn Debug</code> stands for “dynamic.” It means “some type implementing the <code>Debug</code> trait, but which one specifically is only known at runtime.” The mechanism behind it is called a <strong>vtable</strong>: for every type that implements <code>Debug</code>, the compiler prepares a “method address table.” A <code>&amp;dyn Debug</code> actually carries two pointers — one to the data itself, one to that vtable. When a method is called, it first consults the vtable for “where is this type’s <code>Debug</code> method,” then jumps to execute. That extra table lookup and indirect jump is the <strong>runtime overhead of dynamic dispatch</strong>.</p>
+<p>So when should you actually use <code>dyn</code>? Generally in two cases:</p>
+<ol>
+<li><strong>The set of types is unknown at compile time, or is very large</strong>. For example, a collection holding several different kinds of “animals” — <code>Vec&lt;Box&lt;dyn Animal&gt;&gt;</code> — in this case you cannot monomorphize a generic for every animal (the types may not even be exhaustively known at compile time), so <code>dyn</code> is the only way to unify them. (<code>Box</code> is a smart pointer that “boxes a value onto the heap”; here it ensures each element in the collection has a uniform size. Details in a later post.)</li>
+<li><strong>You want to shrink the binary</strong>. Earlier we said monomorphization bloats code; if you find a generic instantiated for dozens of types and the binary is ballooning, switching to <code>dyn</code> can merge dozens of copies into one, at the cost of one extra lookup per call.</li>
+</ol>
+<p>In this <code>process</code> crate, everything so far has been generics (static dispatch) — <code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code>, <code>Vec&lt;(OsString, OsString)&gt;</code>, the various <code>impl Trait</code> uses, all of them. <code>dyn</code> won’t appear heavily until we encounter “a single collection holding many different types” scenarios, which typically show up in async task scheduling, plugin systems, and the like — we will save that for later.</p>
+<blockquote>
+<p>This trade-off runs through all of Rust: when you can use static dispatch (generics / <code>impl Trait</code>), use it — zero overhead is the default goal. Only when you genuinely need “an array that accepts everything” or “objects whose types cannot be known at compile time” do you step back to <code>dyn</code>, trading one table lookup for flexibility.</p>
+</blockquote>
+<h2 id="6-common-pitfalls"><a class="header" href="#6-common-pitfalls">6. Common pitfalls</a></h2>
+<p><strong>Pitfall 1: When returning <code>impl Trait</code>, every branch must return the same concrete type.</strong> The <code>make_iter</code> in section 4 is the cautionary example. Beginners most commonly hit this when trying to “return two different iterators / futures depending on a condition.” The fix is either to unify both branches into the same concrete type, or switch to <code>Box&lt;dyn Trait&gt;</code> (trait object + boxing) and let runtime decide.</p>
+<p><strong>Pitfall 2: Multiple <code>impl Trait</code> in input position are independent types.</strong> The end of section 3 mentioned this: in <code>fn both(a: impl PartialEq, b: impl PartialEq)</code>, <code>a</code> and <code>b</code> each have their own anonymous type parameter, unrelated to each other. If your intent is “both parameters must be the same type,” writing it this way won’t catch the mistake — you must fall back to a named generic: <code>fn both&lt;T: PartialEq&gt;(a: T, b: T)</code>.</p>
+<p><strong>Pitfall 3 (a reminder): Input <code>impl Trait</code> increases binary size.</strong> Every additional type passed in produces one more code copy. For small, high-frequency methods like <code>arg</code>, if call sites pass in a dozen different types, monomorphization generates a dozen copies. Most of the time this is not worth worrying about, but if you are doing size-sensitive embedded development, it is something to keep in mind.</p>
+<h2 id="7-recap-1"><a class="header" href="#7-recap-1">7. Recap</a></h2>
+<ul>
+<li>In <code>ProcessSpec</code>, <code>arg</code>’s parameter <code>impl Into&lt;OsString&gt;</code> and <code>envs</code>’s return type <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code> both use the <code>impl</code> keyword, but in opposite directions.</li>
+<li><strong><code>impl Trait</code> in input position</strong> (on parameters) is essentially syntactic sugar for <strong>generics</strong>, equivalent to <code>&lt;T: Trait&gt;</code>; the <strong>caller</strong> decides the concrete type. It uses <strong>static dispatch</strong>: at compile time, a dedicated copy of the code is <strong>monomorphized</strong> for each concrete type, with zero runtime overhead, at the potential cost of larger binary size. Its only practical difference from named generics is that the type parameter is anonymous and cannot be shared across multiple parameter positions.</li>
+<li><strong><code>impl Trait</code> in return position</strong> (on return types) is called an <strong>opaque return type</strong> (RPIT); the <strong>implementor</strong> decides the concrete type, which the caller cannot see — only that it satisfies a given trait. The benefits are <strong>encapsulation</strong> (the internal implementation can be swapped at any time) and <strong>not having to write complex or unnamable type names</strong> (such as closure-laden iterator types). It is still static dispatch, zero overhead; the hard rule is that only one concrete type can be returned per invocation.</li>
+<li>The counterpart to <code>impl Trait</code>/generics is <strong><code>dyn Trait</code> (trait objects)</strong>, which uses <strong>dynamic dispatch</strong>: a <strong>vtable</strong> is consulted at runtime to find the method address, incurring an indirect call overhead, but it can unify types that are unknown or too numerous at compile time into a single container (e.g., <code>Vec&lt;Box&lt;dyn Trait&gt;&gt;</code>).</li>
+</ul>
+<p>In the next post, armed with this understanding of “who chooses the type,” we return to <code>tokio_process.rs</code> and see how <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> actually implement the interface contract from Post 05 — where we will encounter <code>Arc</code>, <code>Mutex</code>, and channels, and with ownership, borrowing, and <code>impl Trait</code> already under our belt, they will read much more smoothly.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="terminology"><a class="header" href="#terminology">Terminology</a></h1>
 <p>Terms introduced in each blog post, paired with the post number that first introduces them.</p>
@@ -1282,6 +1438,13 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
 <tr><td>lifetime (<code>'a</code>)</td><td>The “shelf life” of a reference; compile-time guarantee that a reference does not outlive its data; can be annotated explicitly with <code>'a</code> or elided.</td><td>06</td></tr>
 <tr><td>lifetime elision</td><td>The compiler auto-fills common lifetimes according to default rules, saving you from writing them.</td><td>06</td></tr>
 <tr><td>NLL (Non-Lexical Lifetimes)</td><td>Borrows end at the “last use” instead of the end of scope, allowing legitimate borrows to be released earlier.</td><td>06</td></tr>
+<tr><td><code>impl Trait</code> (input position / parameter position)</td><td><code>impl Trait</code> in parameter type position, syntactic sugar for generics; the caller decides the concrete type.</td><td>07</td></tr>
+<tr><td>static dispatch</td><td>The approach where the compiler monomorphizes dedicated code for each type and method calls are direct jumps; zero runtime overhead.</td><td>07</td></tr>
+<tr><td>monomorphization</td><td>The process where the compiler “copies” a dedicated version of code for each concrete type; the implementation mechanism of static dispatch.</td><td>07</td></tr>
+<tr><td>opaque return type / <code>impl Trait</code> (return position) / RPIT</td><td><code>impl Trait</code> in return position; the implementor decides the concrete type, the caller only sees its trait; still static dispatch.</td><td>07</td></tr>
+<tr><td>trait object (<code>dyn Trait</code>)</td><td>A value whose concrete type is determined at runtime; can unify multiple types into a single container; uses dynamic dispatch.</td><td>07</td></tr>
+<tr><td>dynamic dispatch</td><td>The approach where a method’s address is looked up at runtime via a vtable; incurs one level of indirection overhead.</td><td>07</td></tr>
+<tr><td>vtable</td><td>A table recording the method addresses for a given type; trait objects use it to achieve dynamic dispatch.</td><td>07</td></tr>
 </tbody>
 </table>
 </div>

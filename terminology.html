@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
+            window.path_to_searchindex_js = "searchindex-da33a305.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-6e48d295.js"></script>
+        <script src="toc-1b1423e7.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -245,6 +245,13 @@
 <tr><td>lifetime (<code>'a</code>)</td><td>The “shelf life” of a reference; compile-time guarantee that a reference does not outlive its data; can be annotated explicitly with <code>'a</code> or elided.</td><td>06</td></tr>
 <tr><td>lifetime elision</td><td>The compiler auto-fills common lifetimes according to default rules, saving you from writing them.</td><td>06</td></tr>
 <tr><td>NLL (Non-Lexical Lifetimes)</td><td>Borrows end at the “last use” instead of the end of scope, allowing legitimate borrows to be released earlier.</td><td>06</td></tr>
+<tr><td><code>impl Trait</code> (input position / parameter position)</td><td><code>impl Trait</code> in parameter type position, syntactic sugar for generics; the caller decides the concrete type.</td><td>07</td></tr>
+<tr><td>static dispatch</td><td>The approach where the compiler monomorphizes dedicated code for each type and method calls are direct jumps; zero runtime overhead.</td><td>07</td></tr>
+<tr><td>monomorphization</td><td>The process where the compiler “copies” a dedicated version of code for each concrete type; the implementation mechanism of static dispatch.</td><td>07</td></tr>
+<tr><td>opaque return type / <code>impl Trait</code> (return position) / RPIT</td><td><code>impl Trait</code> in return position; the implementor decides the concrete type, the caller only sees its trait; still static dispatch.</td><td>07</td></tr>
+<tr><td>trait object (<code>dyn Trait</code>)</td><td>A value whose concrete type is determined at runtime; can unify multiple types into a single container; uses dynamic dispatch.</td><td>07</td></tr>
+<tr><td>dynamic dispatch</td><td>The approach where a method’s address is looked up at runtime via a vtable; incurs one level of indirection overhead.</td><td>07</td></tr>
+<tr><td>vtable</td><td>A table recording the method addresses for a given type; trait objects use it to achieve dynamic dispatch.</td><td>07</td></tr>
 </tbody>
 </table>
 </div>
@@ -253,7 +260,7 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="06-ownership-borrow-lifetime.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -264,7 +271,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="06-ownership-borrow-lifetime.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 

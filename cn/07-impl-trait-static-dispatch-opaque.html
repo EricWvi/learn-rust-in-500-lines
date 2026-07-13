@@ -1,9 +1,9 @@
 <!DOCTYPE HTML>
-<html lang="en" class="light sidebar-visible" dir="ltr">
+<html lang="zh-CN" class="light sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>mut, ProcessSpec, and Vec with Tuples - Learn Rust in 500 Lines</title>
+        <title>impl Trait 的两种位置——静态分发与不透明返回类型 - 500 行代码学会 Rust</title>
 
 
         <!-- Custom HTML head -->
@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-da33a305.js";
+            window.path_to_searchindex_js = "searchindex-6b150a04.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-1b1423e7.js"></script>
+        <script src="toc-1a0bbb5d.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -139,7 +139,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">Learn Rust in 500 Lines</h1>
+                    <h1 class="menu-title">500 行代码学会 Rust</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -179,204 +179,172 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="post-03-mut-processspec-and-vec-with-tuples"><a class="header" href="#post-03-mut-processspec-and-vec-with-tuples">Post 03: mut, ProcessSpec, and Vec with Tuples</a></h1>
-<h2 id="1-that-mut-we-have-been-skipping-all-along"><a class="header" href="#1-that-mut-we-have-been-skipping-all-along">1. That <code>mut</code> we have been skipping all along</a></h2>
-<p>At the end of the last post I left a loose end: <code>mut</code>. Look back at the <code>ProcessStdio</code> code and you can barely find it — the enum itself is a few read-only values, and <code>as_stdio(self)</code> just “reads” the incoming value and computes a result. But the moment you shift your gaze to <code>ProcessSpec</code>, <code>mut</code> erupts everywhere:</p>
+                        <h1 id="第-07-篇impl-trait-的两种位置静态分发与不透明返回类型"><a class="header" href="#第-07-篇impl-trait-的两种位置静态分发与不透明返回类型">第 07 篇：<code>impl Trait</code> 的两种位置——静态分发与不透明返回类型</a></h1>
+<h2 id="一两个一直被我们跳过的方法"><a class="header" href="#一两个一直被我们跳过的方法">一、两个一直被我们跳过的方法</a></h2>
+<p>第三篇我们打开 <code>spec.rs</code> 读 <code>ProcessSpec</code> 时，讲过它的字段、讲过它那套“改完自己再返回“的 builder 套路。但有两行签名，我当时一笔带过、完全没展开：</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
-
-pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self {
-    self.stdin = stdin;
+</span>pub fn arg(mut self, arg: impl Into&lt;OsString&gt;) -&gt; Self {
+    self.args.push(arg.into());
     self
 }
 
-pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self {
-    self.envs.push((key.into(), value.into()));
+pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
+    self.envs
+        .iter()
+        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
+}
+<span class="boring">}</span></code></pre>
+<p>第一行 <code>arg</code>：参数是 <code>impl Into&lt;OsString&gt;</code>。
+第二行 <code>envs</code>：返回值是 <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code>。</p>
+<p>两个方法都用到了 <code>impl</code> 关键字，看起来像一家人。但今天我们要看清一件反直觉的事：<strong>这俩 <code>impl</code> 虽然长得一模一样，方向却正好相反</strong>——一个把“选类型的权力“交给调用者，另一个把它攥在实现者手里。理解了这个差别，顺带就能解锁 Rust 里两个高频概念：<strong>静态分发</strong> 和 <strong>不透明返回类型</strong>。</p>
+<h2 id="二同一个-impl方向正好相反"><a class="header" href="#二同一个-impl方向正好相反">二、同一个 <code>impl</code>，方向正好相反</a></h2>
+<p><code>impl Trait</code> 这套语法，字面意思是“某个实现了 <code>Trait</code> 的类型“。但它在函数签名里出现的位置不同，含义就截然不同。先把核心对比摆出来：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>输入位置（参数）的 <code>impl Trait</code></th><th>返回位置的 <code>impl Trait</code></th></tr>
+</thead>
+<tbody>
+<tr><td>例子</td><td><code>arg: impl Into&lt;OsString&gt;</code></td><td><code>-&gt; impl Iterator&lt;...&gt;</code></td></tr>
+<tr><td>谁决定具体类型？</td><td><strong>调用者</strong></td><td><strong>函数的实现者</strong></td></tr>
+<tr><td>本质</td><td>泛型的一种写法</td><td>不透明返回类型</td></tr>
+<tr><td>分发方式</td><td>静态分发</td><td>仍是静态分发</td></tr>
+</tbody>
+</table>
+</div>
+<p>这张表是整篇文章的骨架。同样是 <code>impl</code>，一个把类型选择权递出去、一个把它藏起来。下面三节，我们逐个拆解。</p>
+<h2 id="三输入位置的-impl-trait泛型的一种写法"><a class="header" href="#三输入位置的-impl-trait泛型的一种写法">三、输入位置的 <code>impl Trait</code>：泛型的一种写法</a></h2>
+<h3 id="它其实就是泛型"><a class="header" href="#它其实就是泛型">它其实就是泛型</a></h3>
+<p><code>arg: impl Into&lt;OsString&gt;</code> 这种写在<strong>参数类型</strong>上的 <code>impl Trait</code>，本质是<strong>泛型</strong>的语法糖。等价于下面这种写法：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn arg&lt;T: Into&lt;OsString&gt;&gt;(mut self, arg: T) -&gt; Self {
+    self.args.push(arg.into());
     self
 }
 <span class="boring">}</span></code></pre>
-<p><code>mut self</code>, <code>self.stdin = ...</code>, <code>self.envs.push(...)</code> — these patterns all hint at the same thing: <strong>data here is going to be changed.</strong> So what exactly is <code>mut</code>? What makes it worth its own keyword in Rust? In this post we will first make it clear, then step into the <code>ProcessSpec</code> “spec list” itself — and you will find that <code>mut</code> is exactly the key to understanding how the entire list gets assembled piece by piece.</p>
-<h2 id="2-immutable-by-default-a-safety-net-that-catches-problems-before-they-happen"><a class="header" href="#2-immutable-by-default-a-safety-net-that-catches-problems-before-they-happen">2. Immutable by default: a safety net that catches problems before they happen</a></h2>
-<p>Let us start with the most counter-intuitive bit: <strong>in Rust, variables are immutable by default.</strong> You write:</p>
+<p>第三篇讲 <code>Vec&lt;OsString&gt;</code> 时你已经见过泛型类型；这里是<strong>泛型函数</strong>。<code>&lt;T: Into&lt;OsString&gt;&gt;</code> 声明一个类型参数 <code>T</code>，冒号后面是约束——要求 <code>T</code> 必须实现 <code>Into&lt;OsString&gt;</code>。<code>impl Into&lt;OsString&gt;</code> 只是把“声明类型参数 + 加约束“这两步合并成一行，少写一个名字而已。两种写法几乎完全等价。</p>
+<p>那么“谁来决定 <code>T</code> 到底是什么“？答案是<strong>调用者</strong>：</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let x = 5;
-x = 6;          // compile error: cannot assign twice to immutable variable `x`
+</span>spec.arg("--verbose")            // 编译器推断 T = &amp;str
+    .arg(String::from("hello")); // 编译器推断 T = String
 <span class="boring">}</span></code></pre>
-<p>This code does not compile. To make <code>x</code> mutable, you must <strong>explicitly</strong> tell the compiler:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let mut x = 5;
-x = 6;          // now OK
-<span class="boring">}</span></code></pre>
-<p>If you have written C, Java, or JavaScript, this is the exact opposite of your intuition — in those languages, variables are mutable by default. Why does Rust flip it? Because “cannot-change-by-default” is a huge safety net.</p>
-<p>Imagine you are reading someone else’s code and see a variable <code>config</code>. In JS, has some function secretly mutated it? You do not know — you have to go dig through every call’s source. But in Rust, as long as <code>config</code> lacks <code>mut</code>, you can be <strong>one hundred percent sure</strong>: from creation until leaving scope, not a hair on it will be touched. When reading code, which values are “fixed” and which are “mutable” can be identified at a glance. A vast number of production bugs come from “a value got changed somewhere you did not notice” — Rust squashes that possibility at compile time.</p>
-<h2 id="3-mut-makes-mutation-visible-in-broad-daylight"><a class="header" href="#3-mut-makes-mutation-visible-in-broad-daylight">3. <code>mut</code> makes mutation visible in broad daylight</a></h2>
-<p><code>mut</code>’s second benefit is that it makes “modifying data” <strong>highly explicit</strong>.</p>
-<p>Seeing <code>let mut x = 5;</code>, anyone reading the code (including yourself a few months later) immediately becomes alert: heads up, this value will change later. In other words, those three letters <code>mut</code> are themselves a line of documentation — they spell out “mutation happens here” right on the variable declaration.</p>
-<p>The reverse also holds: if you label something <code>mut</code> but never actually mutate the variable, the Rust compiler will nag you in return:</p>
-<pre><code class="language-text">warning: variable does not need to be mutable
-    let mut y = 5;
-        ----^
-        help: remove this `mut`
-</code></pre>
-<p>It suggests deleting the unnecessary <code>mut</code>. <code>mut</code> is not meant to be a decoration you casually tack on — it is a solemn declaration that “this really will be changed.” The compiler watches to make sure you do not label things recklessly.</p>
-<h2 id="4-the-iron-law-shared-xor-mutable-and-a-first-meeting-with-the-borrow-checker"><a class="header" href="#4-the-iron-law-shared-xor-mutable-and-a-first-meeting-with-the-borrow-checker">4. The iron law “shared XOR mutable,” and a first meeting with the borrow checker</a></h2>
-<p>The real weight of <code>mut</code> lies behind an iron law of Rust:</p>
+<p>两次调用，<code>arg</code> 的 <code>T</code> 分别被推断成 <code>&amp;str</code> 和 <code>String</code>——只要它们实现了 <code>Into&lt;OsString&gt;</code>，就都能收。类型选择权在调用者手上，函数本身只负责“声明我能接纳什么样的东西“。</p>
 <blockquote>
-<p><strong>Shared XOR mutable.</strong> You can either have multiple <strong>read-only</strong> borrows, or exactly <strong>one</strong> writable borrow — never both at the same time.</p>
+<p>一个类比：输入位置的 <code>impl Trait</code> 像一道写着“持会员卡者入内“的关卡——谁来（哪个具体类型）由你自己决定，只要你有卡（实现了那个 trait）。</p>
 </blockquote>
-<p>A new term appears here: <strong>borrow</strong>. A borrow means using a value temporarily without taking its ownership, and it comes in two kinds: read-only <code>&amp;</code> (shared borrow) and writable <code>&amp;mut</code> (mutable borrow). Those <code>&amp;self</code> / <code>&amp;mut self</code> symbols from the last post are exactly this.</p>
-<p>This iron law is not a document you are expected to follow on your own — it is enforced <strong>at compile time</strong> by something called the <strong>borrow checker</strong>. It watches every borrow in your code, and the moment it detects a conflict like “multiple places want to read while one place wants to write,” it refuses to compile:</p>
+<h3 id="为什么这么写into-让-api-更宽容"><a class="header" href="#为什么这么写into-让-api-更宽容">为什么这么写：<code>Into</code> 让 API 更宽容</a></h3>
+<p>顺带能回答一个早就该问的问题：为什么参数收成 <code>impl Into&lt;OsString&gt;</code>，而不是直接写 <code>OsString</code>？</p>
+<p>因为 <code>Into&lt;OsString&gt;</code> 是一个<strong>约定</strong>，而标准库已经为常见类型实现了 <code>OsString: From&lt;&amp;str&gt;</code> 和 <code>OsString: From&lt;String&gt;</code>——有了 <code>From</code> 就自动得到对应的 <code>Into</code>（这是 <code>From</code> / <code>Into</code> 这对 trait 的内置规则），所以 <code>&amp;str</code>、<code>String</code> 都满足这个约定。把参数收成 <code>impl Into&lt;OsString&gt;</code>，调用者就能直接传字符串字面量、传 <code>String</code>，不必每次都手动 <code>.into()</code> 转换。这就是为什么 <code>ProcessSpec::new("echo")</code> 能直接传入 <code>&amp;str</code> 的原因——如果参数写死成 <code>OsString</code>，调用方每处都得自己 <code>OsString::from("...")</code>，要麻烦得多。</p>
+<p>这套思路贯穿整个 <code>ProcessSpec</code>：<code>new(impl Into&lt;OsString&gt;)</code>、<code>cwd(impl Into&lt;PathBuf&gt;)</code>、<code>env(impl Into&lt;OsString&gt;, impl Into&lt;OsString&gt;)</code>——统统用 <code>Into</code> 放宽入口。<code>arg</code> 方法体里那行 <code>arg.into()</code>，正是在“把传入的 <code>T</code> 转成统一的 <code>OsString</code>“。</p>
+<h3 id="静态分发与单态化"><a class="header" href="#静态分发与单态化">静态分发与单态化</a></h3>
+<p>这就引出这一篇的第二个关键词：<strong>静态分发（static dispatch）</strong>。</p>
+<p>上面两次 <code>arg</code> 调用，传入的类型不同。编译器并不会真的生成一个“万能的 <code>arg</code>“在运行时判断类型。它做的事叫<strong>单态化（monomorphization）</strong>——针对每种实际传入的类型，各“复印“一份专门的 <code>arg</code> 出来：一份专门处理 <code>&amp;str</code>，一份专门处理 <code>String</code>。每份副本里，<code>T</code> 都被替换成了具体类型，<code>.into()</code> 也变成了针对那个具体类型的、确定的函数调用。</p>
+<p>结果是：运行时根本不需要再去“判断 <code>T</code> 是什么、该调哪个 <code>into</code>“——这步在编译期就定死了，每份副本里的代码都是直来直去的直接调用。这种“调用哪个方法在编译期就确定、直接跳转“的方式，就是<strong>静态分发</strong>。它没有运行时开销，正是第三篇提过的<strong>零成本抽象</strong>在分发上的体现。</p>
+<p>零开销是好处，代价是什么？是<strong>二进制体积（binary size）</strong>：每种用到的类型，都额外复印一份代码，编译出来的二进制会变大。<code>arg</code> 这种小函数无所谓，但对那些体量大的泛型函数，单态化会让二进制明显膨胀。这是 Rust 一个常见的取舍——用空间换零运行时成本。</p>
+<h3 id="一个细微但重要的差别"><a class="header" href="#一个细微但重要的差别">一个细微但重要的差别</a></h3>
+<p>输入位置的 <code>impl Trait</code> 和具名泛型 <code>&lt;T: ...&gt;</code> 有一个实际差别：用 <code>impl Trait</code> 时，类型参数是<strong>匿名</strong>的，你拿不到它的名字。这带来一个限制——当你需要“两个参数必须是同一个类型“时，<code>impl Trait</code> 做不到：</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let mut s = String::from("hi");
-let r1 = &amp;s;          // read-only borrow
-let r2 = &amp;mut s;      // mutable borrow — compiler rejects (E0502)
-println!("{} {}", r1, r2);
-<span class="boring">}</span></code></pre>
-<p><code>r1</code> is still borrowing <code>s</code> to read, and <code>r2</code> also wants to borrow <code>s</code> to write — on the same value, reading and writing collide, and the borrow checker does not allow it.</p>
-<p>Why is this rule so important? Because it eradicates at the root two disasters that torment multi-threaded programmers:</p>
-<ul>
-<li><strong>Data races</strong>: multiple threads simultaneously read and write the same memory, producing unpredictable results. With this rule, such conflicts are stopped at compile time — they never even reach runtime.</li>
-<li><strong>Iterator invalidation</strong>: iterating over a collection while modifying it inside the loop easily crashes the program. The same conflict gets flagged by the borrow checker ahead of time.</li>
-</ul>
-<p>This JS-vs-Rust comparison gives you a visceral sense of the rule’s weight:</p>
-<pre><code class="language-javascript">// JavaScript: will the passed-in user be secretly mutated? You have to go read the source.
-let user = { name: "Alice", role: "admin" };
-doSomething(user);
-</code></pre>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Rust: read-only borrow &amp;user — the caller can be confident user will not be changed
-print_role(&amp;user);
+</span>// 用 impl Trait：a 和 b 可以是不同的类型
+fn both(a: impl PartialEq, b: impl PartialEq) {}
 
-// To mutate, you must explicitly borrow as mutable — this line literally says &amp;mut
-let mut settings = Settings::new();
-apply_defaults(&amp;mut settings);
+// 必须用具名泛型，才能强制 a、b 同类型
+fn both_same&lt;T: PartialEq&gt;(a: T, b: T) {}
 <span class="boring">}</span></code></pre>
-<p>Now, the exact mechanism of how the borrow checker works — that entire “ownership + lifetime” system behind it — is a whole tough subject, and I will spend a dedicated post (maybe even several) slowly taking it apart later. For today, you only need to remember three things: it exists, it watches “shared XOR mutable,” and it eliminates an entire class of bugs at compile time. We are just planting the seed here; we will let it sprout later.</p>
-<h2 id="5-why-not-make-everything-immutable-the-performance-case-for-mut"><a class="header" href="#5-why-not-make-everything-immutable-the-performance-case-for-mut">5. Why not make everything immutable: the performance case for <code>mut</code></a></h2>
-<p>At this point you might ask: if immutability is this safe, why does not Rust just go full functional language and make everything absolutely immutable?</p>
-<p>The answer is <strong>performance</strong>. The bottom layer of a computer — CPU and memory — is fundamentally mutable hardware. If everything were truly immutable, then every “modification” of a value would require allocating a new block of memory and copying the old data over — the overhead would be enormous. Rust chooses to give you the protection of “immutable by default” where you need safety, while also letting you use <code>mut</code> to <strong>mutate in place</strong> where you need performance, without copying.</p>
-<p>This is what Rust calls a <strong>zero-cost abstraction</strong>: with <code>mut</code>, you get the “sense of safety” of functional programming while retaining the “high performance” of imperative languages’ “direct memory manipulation, in-place mutation” — both, with neither compromised.</p>
-<h2 id="6-walking-into-processspec-what-this-spec-list-looks-like"><a class="header" href="#6-walking-into-processspec-what-this-spec-list-looks-like">6. Walking into ProcessSpec: what this “spec list” looks like</a></h2>
-<p>With <code>mut</code> as our new lens, let us formally open the definition of <code>ProcessSpec</code>. This is the “spec list” for configuring a child process from the last chapter:</p>
+<p><code>both</code> 里两个 <code>impl PartialEq</code> 是各自独立的匿名类型，互不相干；<code>both_same</code> 用一个具名的 <code>T</code>，才把两者绑成同一个类型。所以 <code>impl Trait</code> 省事，但牺牲了对类型的命名能力。这个差别后面“常见的坑“还会再提一次。</p>
+<h2 id="四返回位置的-impl-trait不透明返回类型"><a class="header" href="#四返回位置的-impl-trait不透明返回类型">四、返回位置的 <code>impl Trait</code>：不透明返回类型</a></h2>
+<p>现在看 <code>envs</code>：</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProcessSpec {
-    program: OsString,
-    args: Vec&lt;OsString&gt;,
-    cwd: Option&lt;PathBuf&gt;,
-    envs: Vec&lt;(OsString, OsString)&gt;,
-    stdin: ProcessStdio,
-    stdout: ProcessStdio,
-    stderr: ProcessStdio,
-    kill_on_drop: bool,
+</span>pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
+    self.envs
+        .iter()
+        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
 }
 <span class="boring">}</span></code></pre>
-<p>That <code>#[derive(Debug, Clone, PartialEq, Eq)]</code> line we already covered last time — makes the struct printable, clonable, and equality-comparable. No need to repeat it. Let us scan through the fields to get an overall picture, then pick the key ones to unpack:</p>
-<ul>
-<li><code>program: OsString</code> — the executable to launch (e.g. <code>"echo"</code>);</li>
-<li><code>args: Vec&lt;OsString&gt;</code> — command-line arguments, a list;</li>
-<li><code>cwd: Option&lt;PathBuf&gt;</code> — working directory, maybe set or not (this <code>Option</code> we save for the next post);</li>
-<li><code>envs: Vec&lt;(OsString, OsString)&gt;</code> — environment variables, a list of “key=value” pairs, the main subject of this post;</li>
-<li><code>stdin</code> / <code>stdout</code> / <code>stderr: ProcessStdio</code> — the three standard stream policies, last chapter’s enum;</li>
-<li><code>kill_on_drop: bool</code> — should the child process be killed when this spec is dropped?</li>
-</ul>
-<p>Most of these types you can probably already guess the gist of, but two new faces need a formal introduction: <code>OsString</code>, and that somewhat intimidating <code>Vec&lt;(OsString, OsString)&gt;</code>.</p>
-<h2 id="7-first-meet-a-new-face-osstring"><a class="header" href="#7-first-meet-a-new-face-osstring">7. First, meet a new face: OsString</a></h2>
-<p><code>OsString</code> comes from the standard library’s <code>std::ffi</code> module (<code>ffi</code> is short for foreign function interface, roughly meaning “the part that talks to the operating system”). It is an <strong>OS-native string</strong>.</p>
-<p>Why does such a string need to exist separately? Because the <code>String</code> we normally use has Rust’s guarantee that it contains <strong>valid UTF-8 text</strong> — which suffices for most applications — but two things, command-line arguments and environment variables, are not guaranteed by the operating system to be valid UTF-8 (on certain systems and in certain language environments, filenames and environment variables can contain non-UTF-8 bytes). So for strings that “directly interact with the OS,” Rust uses <code>OsString</code> instead of <code>String</code>.</p>
-<p>For now, just think of it as “a <code>String</code> tailor-made for command lines and environment variables.” Deeper distinctions we can expand on when we need them.</p>
-<h2 id="8-the-key-breakdown-vecosstring-osstring"><a class="header" href="#8-the-key-breakdown-vecosstring-osstring">8. The key breakdown: <code>Vec&lt;(OsString, OsString)&gt;</code></a></h2>
-<p>This is the main act of the second half of this post. The type of the <code>envs</code> field, <code>Vec&lt;(OsString, OsString)&gt;</code>, wraps three layers from outside in: <code>Vec</code>, <code>&lt;&gt;</code>, and the inner tuple <code>(OsString, OsString)</code>. Let us peel them one by one.</p>
-<p><strong>First layer: what is <code>Vec</code>?</strong> <code>Vec</code> (pronounced “vector”) is the most commonly used <strong>growable array</strong> in Rust — like JavaScript’s <code>Array</code>, Java’s <code>ArrayList</code>, Go’s slice, Python’s <code>list</code>: it holds a sequence of values of the same type, and its length can grow at any time. An empty one is created with <code>Vec::new()</code>, and <code>.push()</code> appends to the end:</p>
+<p>返回值上的 <code>impl Iterator&lt;...&gt;</code>，和参数上的 <code>impl Trait</code> 形似而神不似。它叫<strong>不透明返回类型（opaque return type）</strong>——也叫 RPIT（Return-Position Impl Trait，返回位置 impl Trait）。</p>
+<h3 id="谁决定具体类型实现者"><a class="header" href="#谁决定具体类型实现者">谁决定具体类型？实现者</a></h3>
+<p>这一次，类型选择权在<strong>函数的实现者</strong>（也就是写这个函数的人）手里。函数内部到底返回了什么具体类型，由 <code>self.envs.iter().map(...)</code> 的实际返回类型决定。但外部调用者<strong>看不到</strong>这个具体类型——签名只告诉你“它返回某个实现了 <code>Iterator</code> 的东西，每轮产出一个 <code>(&amp;OsStr, &amp;OsStr)</code>“。</p>
+<p>那个被藏起来的具体类型，若硬要写全，大概长这样：</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let mut args: Vec&lt;OsString&gt; = Vec::new();   // an empty list
-args.push(OsString::from("hello"));          // add one
-args.push(OsString::from("world"));          // add another
+</span>// 极度简化：真实的类型还套着一层带闭包的 Map
+std::slice::Iter&lt;'_, (OsString, OsString)&gt;
 <span class="boring">}</span></code></pre>
-<p>Note <code>mut</code> appearing here: the list itself needs to be mutable to be <code>push</code>ed, so it is declared <code>let mut args</code>.</p>
-<p><strong>Second layer: what is <code>&lt;&gt;</code>?</strong> The <code>OsString</code> inside the angle brackets after <code>Vec</code> is a <strong>generic parameter</strong>. Its meaning: “this <code>Vec</code> holds items of type <code>OsString</code>.” <code>Vec</code> is a universal container; what type it holds is specified by you in angle brackets — <code>Vec&lt;i32&gt;</code> holds integers, <code>Vec&lt;String&gt;</code> holds strings, and <code>Vec&lt;OsString&gt;</code> holds <code>OsString</code>s. So <code>args</code> is “a list of <code>OsString</code>s.”</p>
-<p><strong>Third layer: what is the tuple <code>(OsString, OsString)</code> inside?</strong> The parentheses wrapping <code>(A, B)</code> form a <strong>tuple</strong>, whose job is to <strong>pack several values together in a fixed order into a single value</strong>. <code>(OsString, OsString)</code> is one tuple containing two <code>OsString</code>s — a natural fit for representing “a key, a value” pair.</p>
-<p>Combine all three layers, and the meaning of <code>Vec&lt;(OsString, OsString)&gt;</code> becomes clear: <strong>a list of tuples, where each tuple is a <code>(key, value)</code> pair.</strong> That is exactly <code>envs</code> — a set of environment variables.</p>
-<p>So how does this list get filled up? Look at the <code>env</code> configuration method:</p>
+<p>而且 <code>.map(...)</code> 里那个闭包的类型，是 Rust 编译器给每个闭包单独生成的<strong>匿名类型</strong>，源码里根本写不出名字。所以这个真实的返回类型，作者想老老实实写在签名上都写不出来。<code>impl Iterator</code> 正好绕开了这个难题：<strong>我保证返回的东西实现了 <code>Iterator</code>，具体是什么你别管。</strong></p>
+<h3 id="为什么要藏起来"><a class="header" href="#为什么要藏起来">为什么要藏起来</a></h3>
+<p>藏起来有两个实在的好处。</p>
+<p>第一，<strong>封装（encapsulation）</strong>。调用者只依赖“它是个 <code>Iterator</code>“这一层契约，不依赖具体类型。哪天 <code>envs</code> 的内部实现换了——比如改用别的方式构造迭代器——只要新类型仍然实现 <code>Iterator</code>、产出 <code>(&amp;OsStr, &amp;OsStr)</code>，调用方的代码一行都不用改。具体类型被挡在 API 边界之内，作者随时能换，这就是封装带来的自由。</p>
+<p>第二，<strong>免去写不出、也懒得写的具体类型名</strong>。像上面那种又长又带闭包的类型，手写既丑陋又容易错；闭包类型更是根本无法命名。<code>impl Trait</code> 让作者不必把这些内部细节暴露到签名上。</p>
+<blockquote>
+<p>类比：返回位置的 <code>impl Trait</code> 像一道“出货口“——你只关心从口子里递出来的是“一个能迭代的东西“（满足 <code>Iterator</code>），至于工厂内部用哪条流水线造的，是工厂的事，你无需知道。</p>
+</blockquote>
+<h3 id="它的限制一次只能是一种具体类型"><a class="header" href="#它的限制一次只能是一种具体类型">它的限制：一次只能是一种具体类型</a></h3>
+<p>不透明返回类型有一条硬规则：<strong>一次调用只能返回一种确定的具体类型</strong>。也就是说，你不能根据运行时条件，在不同分支返回不同的具体类型：</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self {
-    self.envs.push((key.into(), value.into()));
-    self
+</span>fn make_iter(flag: bool) -&gt; impl Iterator&lt;Item = i32&gt; {
+    if flag {
+        vec![1, 2, 3].into_iter()   // 具体类型 A：std::vec::IntoIter&lt;i32&gt;
+    } else {
+        [4, 5].into_iter()           // 具体类型 B：另一种迭代器类型——编译器拒绝
+    }
 }
 <span class="boring">}</span></code></pre>
-<p>Every time you call <code>.env("PATH", "/usr/bin")</code>, the method body <code>push</code>es one <code>(key, value)</code> pair to the tail of <code>envs</code>. Call it three times, and <code>envs</code> contains three pairs.</p>
-<blockquote>
-<p>Wait — there is a design choice here worth a second look: why are environment variables stored as <code>Vec&lt;(key, value)&gt;</code> rather than a map (like JS’s <code>Map</code> or Python’s <code>dict</code>)? Because this spec list needs to <strong>preserve the order you set</strong>, and also <strong>allow the same key to appear multiple times</strong> — a later entry overrides an earlier one, which perfectly matches the “environment variable override” semantics. With <code>Vec&lt;(key, value)&gt;</code>, both ordering and duplication come naturally; most map types automatically deduplicate and do not guarantee order, making them a worse fit.</p>
-</blockquote>
-<h2 id="9-processspecs-implementation-builder-and-accessor"><a class="header" href="#9-processspecs-implementation-builder-and-accessor">9. ProcessSpec’s implementation: builder and accessor</a></h2>
-<p>With the definition clear, look at the methods on <code>impl ProcessSpec</code> and you will see they split neatly into two groups.</p>
-<p><strong>The first group is “configuration” methods, forming the so-called builder pattern:</strong></p>
+<p>两个分支返回的具体类型不同，编译器直接拒绝——因为 <code>impl Trait</code> 承诺的是“某一个确定的具体类型“，而不是“好几个类型里挑一个“。如果你确实需要“运行时根据情况返回不同类型“，那就得换工具：用下一节要讲的 <code>dyn Trait</code>（trait 对象）。</p>
+<p>💡 顺便澄清一个容易混淆的点：<strong>返回位置的 <code>impl Trait</code> 并不会带来动态分发</strong>。具体类型在编译期就是确定的（对作者而言一清二楚），只是对调用者藏起来了。调用它的方法仍然是直接跳转的静态分发，零开销。真正引入运行时开销的是显式写 <code>dyn</code>，那是下一节的内容。</p>
+<h2 id="五静态分发-vs-动态分发impl-trait-与-dyn-trait"><a class="header" href="#五静态分发-vs-动态分发impl-trait-与-dyn-trait">五、静态分发 vs 动态分发：<code>impl Trait</code> 与 <code>dyn Trait</code></a></h2>
+<p>前面说输入位置的 <code>impl Trait</code>（以及泛型）走的是<strong>静态分发</strong>——编译期为每种类型复印一份代码。那么有没有“不复印、运行时再决定“的做法？有，就是 <strong>trait 对象（trait object）</strong>，写成 <code>dyn Trait</code>。它走的是<strong>动态分发（dynamic dispatch）</strong>。</p>
+<p>两相对比：</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+</span>use std::fmt::Debug;
 
-pub fn arg(mut self, arg: impl Into&lt;OsString&gt;) -&gt; Self { ... }
-pub fn args&lt;Args, Arg&gt;(mut self, args: Args) -&gt; Self where ... { ... }
-pub fn cwd(mut self, cwd: impl Into&lt;PathBuf&gt;) -&gt; Self { ... }
-pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self { ... }
-pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self { ... }
-pub fn stdout(mut self, stdout: ProcessStdio) -&gt; Self { ... }
-pub fn stderr(mut self, stderr: ProcessStdio) -&gt; Self { ... }
-pub fn kill_on_drop(mut self) -&gt; Self { ... }
-pub fn keep_alive_on_drop(mut self) -&gt; Self { ... }
+// 静态分发：每种类型各复印一份代码，方法调用是直接跳转
+fn print_static(value: &amp;impl Debug) {
+    println!("{:?}", value);
+}
+
+// 动态分发：只有一份代码，方法地址运行时再查
+fn print_dyn(value: &amp;dyn Debug) {
+    println!("{:?}", value);
+}
 <span class="boring">}</span></code></pre>
-<p>Their signatures all look nearly identical: <code>mut self -&gt; Self</code> — take the old <code>self</code>, modify it, return a new one. Revisiting <code>mut</code> from the beginning of this post: each of these methods needs to <strong>modify</strong> some field of <code>self</code>, so the receiver must be <code>mut self</code>. And precisely because each method returns a new <code>Self</code>, you can chain them:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let spec = ProcessSpec::new("echo")
-    .arg("hello")
-    .env("RUST_LOG", "debug")
-    .stdout(ProcessStdio::Piped);
-<span class="boring">}</span></code></pre>
+<p><code>dyn Debug</code> 里的 <code>dyn</code>，是“dynamic“的缩写。它表示“<code>Debug</code> 这个 trait 的某种类型，具体是什么运行时才知道“。背后的机制叫<strong>虚表（vtable）</strong>：每个实现了 <code>Debug</code> 的类型，编译器都替它准备一张“方法地址表“；一个 <code>&amp;dyn Debug</code> 实际上背着两个指针——一个指向数据本身，一个指向那张虚表。调用方法时，先去虚表里查“这个类型的 <code>Debug</code> 方法在哪个地址“，再跳过去执行。多出来的这一次查表和一次间接跳转，就是<strong>动态分发的运行时开销</strong>。</p>
+<p>那么什么时候才该用 <code>dyn</code>？通常在两种情况下：</p>
+<ol>
+<li><strong>类型的种类在编译期未知、或非常多</strong>。比如一个向量里要装好几种不同的“动物“——<code>Vec&lt;Box&lt;dyn Animal&gt;&gt;</code>——这时没法给每种动物各复印一份泛型代码（它们的类型甚至可能在编译期都列不全），只能用 <code>dyn</code> 统一收纳。（<code>Box</code> 是一种“把值装箱到堆上“的智能指针，这里用来让集合里每个元素大小一致；细节以后再讲。）</li>
+<li><strong>想压缩二进制体积</strong>。前面说单态化会让代码膨胀；当你发现某个泛型被几十种类型实例化、二进制涨得厉害时，改用 <code>dyn</code> 能把几十份副本合并成一份，代价是每次调用多一次查表。</li>
+</ol>
+<p>这个 <code>process</code> crate 里目前几乎全是泛型（静态分发）——<code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code>、<code>Vec&lt;(OsString, OsString)&gt;</code>、各种 <code>impl Trait</code>，都是。<code>dyn</code> 要等到我们碰到“一个集合装好几种类型“的场景才会大量出场，那通常是异步任务调度、插件系统之类的地方，留到后面。</p>
 <blockquote>
-<p>As an aside on that <code>&lt;Args, Arg&gt;</code> and trailing <code>where ...</code> in <code>args</code>’s signature: that is how generic methods are written, meaning “my method can accept anything that can be iterated to produce elements that can be converted into <code>OsString</code>.” This is advanced Rust generics; for today, just recognize the shape. A deeper introduction will come later.</p>
+<p>这对取舍贯穿整个 Rust：能用静态分发（泛型 / <code>impl Trait</code>）就用它，零开销是默认追求；只有当“需要写出包容万物的数组、或者处理编译期无法预知的对象“时，才退一步用 <code>dyn</code>，用一次查表的代价换来灵活性。</p>
 </blockquote>
-<p><strong>The second group is “access” methods</strong>, all using <code>&amp;self</code>, read-only and non-mutating:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub fn program(&amp;self) -&gt; &amp;OsStr { ... }
-pub fn args_iter(&amp;self) -&gt; impl Iterator&lt;Item = &amp;OsStr&gt; { ... }
-pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; { ... }
-pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; { ... }
-pub fn stdin_policy(&amp;self) -&gt; ProcessStdio { ... }
-pub fn stdout_policy(&amp;self) -&gt; ProcessStdio { ... }
-pub fn stderr_policy(&amp;self) -&gt; ProcessStdio { ... }
-pub fn should_kill_on_drop(&amp;self) -&gt; bool { ... }
-<span class="boring">}</span></code></pre>
-<p>They do not consume <code>self</code> (using <code>&amp;self</code>, echoing last chapter’s “borrow” concept); they only <strong>look up</strong> the contents written into the spec list and show them to you. Configuration and access, clearly separated responsibilities: one group handles “editing the list,” using <code>mut self</code>; the other group handles “reading the list,” using <code>&amp;self</code>.</p>
-<h2 id="10-recap"><a class="header" href="#10-recap">10. Recap</a></h2>
+<h2 id="六常见的坑"><a class="header" href="#六常见的坑">六、常见的坑</a></h2>
+<p><strong>坑一：返回 <code>impl Trait</code> 时，所有分支必须返回同一个具体类型。</strong> 第四节的 <code>make_iter</code> 就是反面教材。初学者最常在“想根据条件返回两种不同的迭代器 / future“时撞上。解法要么把两个分支统一成同一种具体类型，要么改用 <code>Box&lt;dyn Trait&gt;</code>（trait 对象 + 装箱），让运行时来挑。</p>
+<p><strong>坑二：多个输入位置的 <code>impl Trait</code>，彼此是各自独立的类型。</strong> 第三节末尾提过：<code>fn both(a: impl PartialEq, b: impl PartialEq)</code> 里 <code>a</code>、<code>b</code> 各有自己的匿名类型参数，互不相干。如果你本意是“两个参数必须同类型“，这样写编译器不会帮你——必须回到具名泛型 <code>fn both&lt;T: PartialEq&gt;(a: T, b: T)</code>。</p>
+<p><strong>坑三（提醒）：输入 <code>impl Trait</code> 会增大二进制。</strong> 每多一种传入类型，就多复印一份代码。对像 <code>arg</code> 这样小而高频的方法，调用点若传入十几种不同类型，单态化出来的副本就有十几份。多数时候不必担心，但如果你在做体积敏感的嵌入式开发，这是值得留意的一处。</p>
+<h2 id="七小结"><a class="header" href="#七小结">七、小结</a></h2>
 <ul>
-<li><strong>Rust variables are immutable by default</strong>; to mutate, you must explicitly write <code>mut</code>. This default rule both prevents “accidental mutation” bugs and makes “which values change” obvious when reading code. Excess <code>mut</code> will even trigger a compiler warning telling you to remove it.</li>
-<li>Rust’s iron law is <strong>“shared XOR mutable”</strong>: either multiple read-only borrows <code>&amp;</code>, or one mutable borrow <code>&amp;mut</code> — never both. This rule is enforced at compile time by the <strong>borrow checker</strong>, eradicating data races and iterator invalidation at the root. Its full mechanism we save for a future deep dive.</li>
-<li><code>mut</code> lets you enjoy the safety of “immutable by default” while also <strong>mutating in place</strong> when needed, combining functional safety with imperative performance (zero-cost abstraction).</li>
-<li><code>ProcessSpec</code> is a “spec list” for configuring a child process. Its fields include <code>OsString</code> (OS-native string, for command lines/environment variables) and <code>Vec&lt;(OsString, OsString)&gt;</code> (a list of key-value pairs, preserving order and allowing duplicate-override).</li>
-<li><code>Vec</code> is a growable array; angle brackets <code>&lt;&gt;</code> hold the <strong>generic parameter</strong> specifying what type the container holds; parentheses <code>(A, B)</code> form a <strong>tuple</strong>, packing values in a fixed order.</li>
-<li><code>ProcessSpec</code>’s methods split into two groups: <strong>builder</strong> configuration methods use <code>mut self -&gt; Self</code>, achieving chainable calls by returning a new <code>Self</code>; <strong>accessor</strong> methods use <code>&amp;self</code>, read-only and non-mutating.</li>
+<li><code>ProcessSpec</code> 里 <code>arg</code> 的参数 <code>impl Into&lt;OsString&gt;</code>、<code>envs</code> 的返回值 <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code>，都用 <code>impl</code> 关键字，但方向相反。</li>
+<li><strong>输入位置的 <code>impl Trait</code></strong>（参数上）本质是<strong>泛型</strong>的语法糖，等价于 <code>&lt;T: Trait&gt;</code>；<strong>调用者</strong>决定具体类型。它走<strong>静态分发</strong>：编译期对每种实际类型<strong>单态化</strong>出一份专门代码，零运行时开销，代价是可能增大二进制体积。它与具名泛型的唯一实质差别，是类型参数匿名、无法被多个参数共享引用。</li>
+<li><strong>返回位置的 <code>impl Trait</code></strong>（返回值上）叫<strong>不透明返回类型（opaque return type / RPIT）</strong>；<strong>实现者</strong>决定具体类型，调用者看不到，只知道它满足某个 trait。好处是<strong>封装</strong>（可随时换内部实现）和<strong>免写复杂/无法命名的类型名</strong>（如含闭包的迭代器类型）。它仍是静态分发、零开销；硬规则是一次只能返回一种确定的具体类型。</li>
+<li>与 <code>impl Trait</code>/泛型相对的是 <strong><code>dyn Trait</code>（trait 对象）</strong>，走<strong>动态分发</strong>：通过**虚表（vtable）**在运行时查方法地址，有一次间接调用开销，但能把编译期未知或种类繁多的类型统一收纳（如 <code>Vec&lt;Box&lt;dyn Trait&gt;&gt;</code>）。</li>
 </ul>
-<p>In the next post, we will tackle two types in <code>ProcessSpec</code> that we have not yet touched — <code>Option</code> and <code>PathBuf</code> — and push today’s brief taste of the borrow checker one step further.</p>
+<p>下一篇，我们带着这套对“类型选择权“的理解，回到 <code>tokio_process.rs</code>，看 <code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code> 怎么把第五篇的接口约定真正实现出来——届时会碰到 <code>Arc</code>、<code>Mutex</code> 和通道，而有了所有权、借用、<code>impl Trait</code> 打底，它们读起来会顺很多。</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="02-enum-derive-self-match.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="06-ownership-borrow-lifetime.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="04-option-pathbuf-borrow.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="terminology.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -386,11 +354,11 @@ pub fn should_kill_on_drop(&amp;self) -&gt; bool { ... }
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="02-enum-derive-self-match.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="06-ownership-borrow-lifetime.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="04-option-pathbuf-borrow.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="terminology.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-0c9d5882.js";
+            window.path_to_searchindex_js = "searchindex-da33a305.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-6e48d295.js"></script>
+        <script src="toc-1b1423e7.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -377,7 +377,6 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
 <li><strong>The borrow checker</strong> is the compile-time component that enforces these checks; treat it as a responsible reviewer, not an enemy — what it stops are mostly real bugs like use-after-free, dangling pointers, and data races.</li>
 <li><strong>Lifetimes</strong> are a reference’s “shelf life,” guaranteeing a reference does not outlive its data (library card vs. library). <code>cwd_path(&amp;self) -&gt; &amp;Path</code> has the return reference’s lifetime bound to <code>self</code> (usually elided); when elision is insufficient, annotate explicitly with <code>'a</code>, as in <code>fn f&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code>. <code>'static</code> is the special lifetime that lives until the program ends.</li>
 </ul>
-<p>In the next post, we will take this understanding back into <code>tokio_process.rs</code> and see how <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> actually implement this interface contract — where we will encounter <code>Arc</code>, <code>Mutex</code>, and channels, which will read much more smoothly now that we have ownership and borrowing as our foundation.</p>
 
                     </main>
 
@@ -387,7 +386,7 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="terminology.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="07-impl-trait-static-dispatch-opaque.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -401,7 +400,7 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="terminology.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="07-impl-trait-static-dispatch-opaque.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

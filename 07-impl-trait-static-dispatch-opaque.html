@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>mut, ProcessSpec, and Vec with Tuples - Learn Rust in 500 Lines</title>
+        <title>impl Trait in Two Positions — Static Dispatch and Opaque Return Types - Learn Rust in 500 Lines</title>
 
 
         <!-- Custom HTML head -->
@@ -179,204 +179,172 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="post-03-mut-processspec-and-vec-with-tuples"><a class="header" href="#post-03-mut-processspec-and-vec-with-tuples">Post 03: mut, ProcessSpec, and Vec with Tuples</a></h1>
-<h2 id="1-that-mut-we-have-been-skipping-all-along"><a class="header" href="#1-that-mut-we-have-been-skipping-all-along">1. That <code>mut</code> we have been skipping all along</a></h2>
-<p>At the end of the last post I left a loose end: <code>mut</code>. Look back at the <code>ProcessStdio</code> code and you can barely find it — the enum itself is a few read-only values, and <code>as_stdio(self)</code> just “reads” the incoming value and computes a result. But the moment you shift your gaze to <code>ProcessSpec</code>, <code>mut</code> erupts everywhere:</p>
+                        <h1 id="post-07-impl-trait-in-two-positions--static-dispatch-and-opaque-return-types"><a class="header" href="#post-07-impl-trait-in-two-positions--static-dispatch-and-opaque-return-types">Post 07: <code>impl Trait</code> in Two Positions — Static Dispatch and Opaque Return Types</a></h1>
+<h2 id="1-two-methods-we-have-been-skipping"><a class="header" href="#1-two-methods-we-have-been-skipping">1. Two methods we have been skipping</a></h2>
+<p>Back in Post 03, when we opened <code>spec.rs</code> to read <code>ProcessSpec</code>, we covered its fields and its “modify-and-return-self” builder pattern. But there were two signatures I glossed over entirely:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
-
-pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self {
-    self.stdin = stdin;
+</span>pub fn arg(mut self, arg: impl Into&lt;OsString&gt;) -&gt; Self {
+    self.args.push(arg.into());
     self
 }
 
-pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self {
-    self.envs.push((key.into(), value.into()));
+pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
+    self.envs
+        .iter()
+        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
+}
+<span class="boring">}</span></code></pre>
+<p>First line, <code>arg</code>: the parameter is <code>impl Into&lt;OsString&gt;</code>.
+Second line, <code>envs</code>: the return type is <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code>.</p>
+<p>Both methods use the <code>impl</code> keyword — they look like family. But today we are going to see something counter-intuitive: <strong>these two <code>impl</code>s, though identical in appearance, point in opposite directions</strong> — one hands the “power to choose the type” to the caller, the other keeps it in the implementor’s hands. Once you grasp this difference, you unlock two high-frequency Rust concepts: <strong>static dispatch</strong> and <strong>opaque return types</strong>.</p>
+<h2 id="2-the-same-impl-opposite-directions"><a class="header" href="#2-the-same-impl-opposite-directions">2. The same <code>impl</code>, opposite directions</a></h2>
+<p>The <code>impl Trait</code> syntax literally means “some type that implements <code>Trait</code>.” But depending on where it appears in a function signature, its meaning is completely different. Here is the core comparison:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th><code>impl Trait</code> in input position (parameters)</th><th><code>impl Trait</code> in return position</th></tr>
+</thead>
+<tbody>
+<tr><td>Example</td><td><code>arg: impl Into&lt;OsString&gt;</code></td><td><code>-&gt; impl Iterator&lt;...&gt;</code></td></tr>
+<tr><td>Who decides the concrete type?</td><td><strong>The caller</strong></td><td><strong>The function’s implementor</strong></td></tr>
+<tr><td>Essence</td><td>A kind of generic</td><td>Opaque return type</td></tr>
+<tr><td>Dispatch</td><td>Static dispatch</td><td>Also static dispatch</td></tr>
+</tbody>
+</table>
+</div>
+<p>This table is the skeleton of the whole article. Same <code>impl</code>, one delegates type choice outward, the other hides it inward. The next three sections unpack each in detail.</p>
+<h2 id="3-impl-trait-in-input-position-a-kind-of-generic"><a class="header" href="#3-impl-trait-in-input-position-a-kind-of-generic">3. <code>impl Trait</code> in input position: a kind of generic</a></h2>
+<h3 id="it-is-basically-a-generic"><a class="header" href="#it-is-basically-a-generic">It is basically a generic</a></h3>
+<p><code>arg: impl Into&lt;OsString&gt;</code> — this <code>impl Trait</code> in <strong>parameter type</strong> position is essentially syntactic sugar for a <strong>generic</strong>. It is equivalent to:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub fn arg&lt;T: Into&lt;OsString&gt;&gt;(mut self, arg: T) -&gt; Self {
+    self.args.push(arg.into());
     self
 }
 <span class="boring">}</span></code></pre>
-<p><code>mut self</code>, <code>self.stdin = ...</code>, <code>self.envs.push(...)</code> — these patterns all hint at the same thing: <strong>data here is going to be changed.</strong> So what exactly is <code>mut</code>? What makes it worth its own keyword in Rust? In this post we will first make it clear, then step into the <code>ProcessSpec</code> “spec list” itself — and you will find that <code>mut</code> is exactly the key to understanding how the entire list gets assembled piece by piece.</p>
-<h2 id="2-immutable-by-default-a-safety-net-that-catches-problems-before-they-happen"><a class="header" href="#2-immutable-by-default-a-safety-net-that-catches-problems-before-they-happen">2. Immutable by default: a safety net that catches problems before they happen</a></h2>
-<p>Let us start with the most counter-intuitive bit: <strong>in Rust, variables are immutable by default.</strong> You write:</p>
+<p>Back in Post 03, when we saw <code>Vec&lt;OsString&gt;</code>, you already encountered generic types; here we have a <strong>generic function</strong>. <code>&lt;T: Into&lt;OsString&gt;&gt;</code> declares a type parameter <code>T</code>, and after the colon comes the constraint — <code>T</code> must implement <code>Into&lt;OsString&gt;</code>. <code>impl Into&lt;OsString&gt;</code> simply merges “declare a type parameter + add a constraint” into one line, saving you from naming it. The two forms are almost entirely equivalent.</p>
+<p>So who decides what <code>T</code> actually is? The answer is <strong>the caller</strong>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let x = 5;
-x = 6;          // compile error: cannot assign twice to immutable variable `x`
+</span>spec.arg("--verbose")            // compiler infers T = &amp;str
+    .arg(String::from("hello")); // compiler infers T = String
 <span class="boring">}</span></code></pre>
-<p>This code does not compile. To make <code>x</code> mutable, you must <strong>explicitly</strong> tell the compiler:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let mut x = 5;
-x = 6;          // now OK
-<span class="boring">}</span></code></pre>
-<p>If you have written C, Java, or JavaScript, this is the exact opposite of your intuition — in those languages, variables are mutable by default. Why does Rust flip it? Because “cannot-change-by-default” is a huge safety net.</p>
-<p>Imagine you are reading someone else’s code and see a variable <code>config</code>. In JS, has some function secretly mutated it? You do not know — you have to go dig through every call’s source. But in Rust, as long as <code>config</code> lacks <code>mut</code>, you can be <strong>one hundred percent sure</strong>: from creation until leaving scope, not a hair on it will be touched. When reading code, which values are “fixed” and which are “mutable” can be identified at a glance. A vast number of production bugs come from “a value got changed somewhere you did not notice” — Rust squashes that possibility at compile time.</p>
-<h2 id="3-mut-makes-mutation-visible-in-broad-daylight"><a class="header" href="#3-mut-makes-mutation-visible-in-broad-daylight">3. <code>mut</code> makes mutation visible in broad daylight</a></h2>
-<p><code>mut</code>’s second benefit is that it makes “modifying data” <strong>highly explicit</strong>.</p>
-<p>Seeing <code>let mut x = 5;</code>, anyone reading the code (including yourself a few months later) immediately becomes alert: heads up, this value will change later. In other words, those three letters <code>mut</code> are themselves a line of documentation — they spell out “mutation happens here” right on the variable declaration.</p>
-<p>The reverse also holds: if you label something <code>mut</code> but never actually mutate the variable, the Rust compiler will nag you in return:</p>
-<pre><code class="language-text">warning: variable does not need to be mutable
-    let mut y = 5;
-        ----^
-        help: remove this `mut`
-</code></pre>
-<p>It suggests deleting the unnecessary <code>mut</code>. <code>mut</code> is not meant to be a decoration you casually tack on — it is a solemn declaration that “this really will be changed.” The compiler watches to make sure you do not label things recklessly.</p>
-<h2 id="4-the-iron-law-shared-xor-mutable-and-a-first-meeting-with-the-borrow-checker"><a class="header" href="#4-the-iron-law-shared-xor-mutable-and-a-first-meeting-with-the-borrow-checker">4. The iron law “shared XOR mutable,” and a first meeting with the borrow checker</a></h2>
-<p>The real weight of <code>mut</code> lies behind an iron law of Rust:</p>
+<p>Two calls, and <code>arg</code>’s <code>T</code> is inferred as <code>&amp;str</code> and <code>String</code> respectively — as long as both implement <code>Into&lt;OsString&gt;</code>, they are accepted. The power to choose the type lies with the caller; the function itself only declares “here is what I can accept.”</p>
 <blockquote>
-<p><strong>Shared XOR mutable.</strong> You can either have multiple <strong>read-only</strong> borrows, or exactly <strong>one</strong> writable borrow — never both at the same time.</p>
+<p>An analogy: <code>impl Trait</code> in input position is like a checkpoint that says “members only” — whoever comes (which concrete type) is up to you, as long as you have the card (implement that trait).</p>
 </blockquote>
-<p>A new term appears here: <strong>borrow</strong>. A borrow means using a value temporarily without taking its ownership, and it comes in two kinds: read-only <code>&amp;</code> (shared borrow) and writable <code>&amp;mut</code> (mutable borrow). Those <code>&amp;self</code> / <code>&amp;mut self</code> symbols from the last post are exactly this.</p>
-<p>This iron law is not a document you are expected to follow on your own — it is enforced <strong>at compile time</strong> by something called the <strong>borrow checker</strong>. It watches every borrow in your code, and the moment it detects a conflict like “multiple places want to read while one place wants to write,” it refuses to compile:</p>
+<h3 id="why-write-it-this-way-into-makes-the-api-more-forgiving"><a class="header" href="#why-write-it-this-way-into-makes-the-api-more-forgiving">Why write it this way: <code>Into</code> makes the API more forgiving</a></h3>
+<p>This also answers a question that has been overdue: why take the parameter as <code>impl Into&lt;OsString&gt;</code> instead of just <code>OsString</code>?</p>
+<p>Because <code>Into&lt;OsString&gt;</code> is a <strong>contract</strong>, and the standard library already implements <code>OsString: From&lt;&amp;str&gt;</code> and <code>OsString: From&lt;String&gt;</code> for the common types — and with <code>From</code>, you automatically get the corresponding <code>Into</code> (this is a built-in rule of the <code>From</code>/<code>Into</code> trait pair), so both <code>&amp;str</code> and <code>String</code> satisfy the contract. By accepting the parameter as <code>impl Into&lt;OsString&gt;</code>, callers can directly pass a string literal or a <code>String</code>, without manually calling <code>.into()</code> each time. This is why <code>ProcessSpec::new("echo")</code> can directly take a <code>&amp;str</code> — if the parameter were rigidly typed as <code>OsString</code>, every call site would need <code>OsString::from("...")</code>, which would be much more tedious.</p>
+<p>This pattern runs through all of <code>ProcessSpec</code>: <code>new(impl Into&lt;OsString&gt;)</code>, <code>cwd(impl Into&lt;PathBuf&gt;)</code>, <code>env(impl Into&lt;OsString&gt;, impl Into&lt;OsString&gt;)</code> — all using <code>Into</code> to widen the entry point. The <code>arg.into()</code> inside <code>arg</code>’s body is precisely “converting the incoming <code>T</code> into the uniform <code>OsString</code>.”</p>
+<h3 id="static-dispatch-and-monomorphization"><a class="header" href="#static-dispatch-and-monomorphization">Static dispatch and monomorphization</a></h3>
+<p>This brings us to the second keyword of this post: <strong>static dispatch</strong>.</p>
+<p>Above, the two <code>arg</code> calls pass in different types. The compiler does not actually generate a single “universal <code>arg</code>” that figures out the type at runtime. What it does is called <strong>monomorphization</strong> — for each concrete type actually passed in, it “copies” a dedicated version of <code>arg</code>: one specialized for <code>&amp;str</code>, one specialized for <code>String</code>. In each copy, <code>T</code> is replaced by a concrete type, and <code>.into()</code> becomes a definite, direct function call targeting that specific type.</p>
+<p>The result: at runtime, there is never any “figure out what <code>T</code> is and which <code>into</code> to call” step — that was nailed down at compile time. Every call in each copy is a straightforward, direct jump. This approach — where which method to call is decided at compile time, resulting in a direct jump — is <strong>static dispatch</strong>. It carries zero runtime overhead, and is exactly the <strong>zero-cost abstraction</strong> we mentioned in Post 03, applied to dispatch.</p>
+<p>Zero overhead is the upside. What is the cost? <strong>Binary size</strong>: for every type used, you get an extra copy of the code. The compiled binary grows. For a tiny function like <code>arg</code>, it hardly matters, but for large generic functions, monomorphization can visibly bloat the binary. This is a common Rust trade-off — trading space for zero runtime cost.</p>
+<h3 id="a-subtle-but-important-difference"><a class="header" href="#a-subtle-but-important-difference">A subtle but important difference</a></h3>
+<p>There is one practical difference between input-position <code>impl Trait</code> and named generics <code>&lt;T: ...&gt;</code>: with <code>impl Trait</code>, the type parameter is <strong>anonymous</strong> — you cannot refer to its name. This imposes a limitation: when you need “two parameters must be the same type,” <code>impl Trait</code> cannot do it:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let mut s = String::from("hi");
-let r1 = &amp;s;          // read-only borrow
-let r2 = &amp;mut s;      // mutable borrow — compiler rejects (E0502)
-println!("{} {}", r1, r2);
-<span class="boring">}</span></code></pre>
-<p><code>r1</code> is still borrowing <code>s</code> to read, and <code>r2</code> also wants to borrow <code>s</code> to write — on the same value, reading and writing collide, and the borrow checker does not allow it.</p>
-<p>Why is this rule so important? Because it eradicates at the root two disasters that torment multi-threaded programmers:</p>
-<ul>
-<li><strong>Data races</strong>: multiple threads simultaneously read and write the same memory, producing unpredictable results. With this rule, such conflicts are stopped at compile time — they never even reach runtime.</li>
-<li><strong>Iterator invalidation</strong>: iterating over a collection while modifying it inside the loop easily crashes the program. The same conflict gets flagged by the borrow checker ahead of time.</li>
-</ul>
-<p>This JS-vs-Rust comparison gives you a visceral sense of the rule’s weight:</p>
-<pre><code class="language-javascript">// JavaScript: will the passed-in user be secretly mutated? You have to go read the source.
-let user = { name: "Alice", role: "admin" };
-doSomething(user);
-</code></pre>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// Rust: read-only borrow &amp;user — the caller can be confident user will not be changed
-print_role(&amp;user);
+</span>// With impl Trait: a and b can be different types
+fn both(a: impl PartialEq, b: impl PartialEq) {}
 
-// To mutate, you must explicitly borrow as mutable — this line literally says &amp;mut
-let mut settings = Settings::new();
-apply_defaults(&amp;mut settings);
+// You must use a named generic to enforce a and b having the same type
+fn both_same&lt;T: PartialEq&gt;(a: T, b: T) {}
 <span class="boring">}</span></code></pre>
-<p>Now, the exact mechanism of how the borrow checker works — that entire “ownership + lifetime” system behind it — is a whole tough subject, and I will spend a dedicated post (maybe even several) slowly taking it apart later. For today, you only need to remember three things: it exists, it watches “shared XOR mutable,” and it eliminates an entire class of bugs at compile time. We are just planting the seed here; we will let it sprout later.</p>
-<h2 id="5-why-not-make-everything-immutable-the-performance-case-for-mut"><a class="header" href="#5-why-not-make-everything-immutable-the-performance-case-for-mut">5. Why not make everything immutable: the performance case for <code>mut</code></a></h2>
-<p>At this point you might ask: if immutability is this safe, why does not Rust just go full functional language and make everything absolutely immutable?</p>
-<p>The answer is <strong>performance</strong>. The bottom layer of a computer — CPU and memory — is fundamentally mutable hardware. If everything were truly immutable, then every “modification” of a value would require allocating a new block of memory and copying the old data over — the overhead would be enormous. Rust chooses to give you the protection of “immutable by default” where you need safety, while also letting you use <code>mut</code> to <strong>mutate in place</strong> where you need performance, without copying.</p>
-<p>This is what Rust calls a <strong>zero-cost abstraction</strong>: with <code>mut</code>, you get the “sense of safety” of functional programming while retaining the “high performance” of imperative languages’ “direct memory manipulation, in-place mutation” — both, with neither compromised.</p>
-<h2 id="6-walking-into-processspec-what-this-spec-list-looks-like"><a class="header" href="#6-walking-into-processspec-what-this-spec-list-looks-like">6. Walking into ProcessSpec: what this “spec list” looks like</a></h2>
-<p>With <code>mut</code> as our new lens, let us formally open the definition of <code>ProcessSpec</code>. This is the “spec list” for configuring a child process from the last chapter:</p>
+<p>In <code>both</code>, the two <code>impl PartialEq</code> are independent anonymous types, unrelated to each other. <code>both_same</code> uses a single named <code>T</code> to bind them to the same type. So <code>impl Trait</code> saves keystrokes but sacrifices the ability to name the type. This difference will come up again in the pitfalls section.</p>
+<h2 id="4-impl-trait-in-return-position-opaque-return-types"><a class="header" href="#4-impl-trait-in-return-position-opaque-return-types">4. <code>impl Trait</code> in return position: opaque return types</a></h2>
+<p>Now let’s look at <code>envs</code>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProcessSpec {
-    program: OsString,
-    args: Vec&lt;OsString&gt;,
-    cwd: Option&lt;PathBuf&gt;,
-    envs: Vec&lt;(OsString, OsString)&gt;,
-    stdin: ProcessStdio,
-    stdout: ProcessStdio,
-    stderr: ProcessStdio,
-    kill_on_drop: bool,
+</span>pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
+    self.envs
+        .iter()
+        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
 }
 <span class="boring">}</span></code></pre>
-<p>That <code>#[derive(Debug, Clone, PartialEq, Eq)]</code> line we already covered last time — makes the struct printable, clonable, and equality-comparable. No need to repeat it. Let us scan through the fields to get an overall picture, then pick the key ones to unpack:</p>
-<ul>
-<li><code>program: OsString</code> — the executable to launch (e.g. <code>"echo"</code>);</li>
-<li><code>args: Vec&lt;OsString&gt;</code> — command-line arguments, a list;</li>
-<li><code>cwd: Option&lt;PathBuf&gt;</code> — working directory, maybe set or not (this <code>Option</code> we save for the next post);</li>
-<li><code>envs: Vec&lt;(OsString, OsString)&gt;</code> — environment variables, a list of “key=value” pairs, the main subject of this post;</li>
-<li><code>stdin</code> / <code>stdout</code> / <code>stderr: ProcessStdio</code> — the three standard stream policies, last chapter’s enum;</li>
-<li><code>kill_on_drop: bool</code> — should the child process be killed when this spec is dropped?</li>
-</ul>
-<p>Most of these types you can probably already guess the gist of, but two new faces need a formal introduction: <code>OsString</code>, and that somewhat intimidating <code>Vec&lt;(OsString, OsString)&gt;</code>.</p>
-<h2 id="7-first-meet-a-new-face-osstring"><a class="header" href="#7-first-meet-a-new-face-osstring">7. First, meet a new face: OsString</a></h2>
-<p><code>OsString</code> comes from the standard library’s <code>std::ffi</code> module (<code>ffi</code> is short for foreign function interface, roughly meaning “the part that talks to the operating system”). It is an <strong>OS-native string</strong>.</p>
-<p>Why does such a string need to exist separately? Because the <code>String</code> we normally use has Rust’s guarantee that it contains <strong>valid UTF-8 text</strong> — which suffices for most applications — but two things, command-line arguments and environment variables, are not guaranteed by the operating system to be valid UTF-8 (on certain systems and in certain language environments, filenames and environment variables can contain non-UTF-8 bytes). So for strings that “directly interact with the OS,” Rust uses <code>OsString</code> instead of <code>String</code>.</p>
-<p>For now, just think of it as “a <code>String</code> tailor-made for command lines and environment variables.” Deeper distinctions we can expand on when we need them.</p>
-<h2 id="8-the-key-breakdown-vecosstring-osstring"><a class="header" href="#8-the-key-breakdown-vecosstring-osstring">8. The key breakdown: <code>Vec&lt;(OsString, OsString)&gt;</code></a></h2>
-<p>This is the main act of the second half of this post. The type of the <code>envs</code> field, <code>Vec&lt;(OsString, OsString)&gt;</code>, wraps three layers from outside in: <code>Vec</code>, <code>&lt;&gt;</code>, and the inner tuple <code>(OsString, OsString)</code>. Let us peel them one by one.</p>
-<p><strong>First layer: what is <code>Vec</code>?</strong> <code>Vec</code> (pronounced “vector”) is the most commonly used <strong>growable array</strong> in Rust — like JavaScript’s <code>Array</code>, Java’s <code>ArrayList</code>, Go’s slice, Python’s <code>list</code>: it holds a sequence of values of the same type, and its length can grow at any time. An empty one is created with <code>Vec::new()</code>, and <code>.push()</code> appends to the end:</p>
+<p>The <code>impl Iterator&lt;...&gt;</code> on the return type looks like the parameter <code>impl Trait</code>, but they are not the same thing. This is called an <strong>opaque return type</strong> — also known as RPIT (Return-Position Impl Trait).</p>
+<h3 id="who-decides-the-concrete-type-the-implementor"><a class="header" href="#who-decides-the-concrete-type-the-implementor">Who decides the concrete type? The implementor</a></h3>
+<p>This time, the power to choose the type lies with <strong>the function’s implementor</strong> (the person writing the function). The concrete type returned by the function body is whatever <code>self.envs.iter().map(...)</code> actually evaluates to. But the external caller <strong>cannot see</strong> this concrete type — the signature only tells you “it returns something that implements <code>Iterator</code>, yielding a <code>(&amp;OsStr, &amp;OsStr)</code> each iteration.”</p>
+<p>If we had to spell out that hidden concrete type in full, it would look roughly like:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let mut args: Vec&lt;OsString&gt; = Vec::new();   // an empty list
-args.push(OsString::from("hello"));          // add one
-args.push(OsString::from("world"));          // add another
+</span>// Heavily simplified: the real type wraps a closure inside Map
+std::slice::Iter&lt;'_, (OsString, OsString)&gt;
 <span class="boring">}</span></code></pre>
-<p>Note <code>mut</code> appearing here: the list itself needs to be mutable to be <code>push</code>ed, so it is declared <code>let mut args</code>.</p>
-<p><strong>Second layer: what is <code>&lt;&gt;</code>?</strong> The <code>OsString</code> inside the angle brackets after <code>Vec</code> is a <strong>generic parameter</strong>. Its meaning: “this <code>Vec</code> holds items of type <code>OsString</code>.” <code>Vec</code> is a universal container; what type it holds is specified by you in angle brackets — <code>Vec&lt;i32&gt;</code> holds integers, <code>Vec&lt;String&gt;</code> holds strings, and <code>Vec&lt;OsString&gt;</code> holds <code>OsString</code>s. So <code>args</code> is “a list of <code>OsString</code>s.”</p>
-<p><strong>Third layer: what is the tuple <code>(OsString, OsString)</code> inside?</strong> The parentheses wrapping <code>(A, B)</code> form a <strong>tuple</strong>, whose job is to <strong>pack several values together in a fixed order into a single value</strong>. <code>(OsString, OsString)</code> is one tuple containing two <code>OsString</code>s — a natural fit for representing “a key, a value” pair.</p>
-<p>Combine all three layers, and the meaning of <code>Vec&lt;(OsString, OsString)&gt;</code> becomes clear: <strong>a list of tuples, where each tuple is a <code>(key, value)</code> pair.</strong> That is exactly <code>envs</code> — a set of environment variables.</p>
-<p>So how does this list get filled up? Look at the <code>env</code> configuration method:</p>
+<p>And the closure type inside <code>.map(...)</code> — the Rust compiler generates a unique <strong>anonymous type</strong> for every closure, a type you simply cannot name in source code. So the real return type is genuinely unwritable in a signature. <code>impl Iterator</code> neatly sidesteps the problem: <strong>I guarantee the returned thing implements <code>Iterator</code>; don’t worry about what concretely it is.</strong></p>
+<h3 id="why-hide-it"><a class="header" href="#why-hide-it">Why hide it</a></h3>
+<p>Hiding the type brings two concrete benefits.</p>
+<p>First, <strong>encapsulation</strong>. The caller only depends on the contract “it is an <code>Iterator</code>,” not on the concrete type. If someday <code>envs</code>’s internal implementation changes — say, constructing the iterator differently — as long as the new type still implements <code>Iterator</code> and yields <code>(&amp;OsStr, &amp;OsStr)</code>, not a single line of caller code needs to change. The concrete type is walled off inside the API boundary; the author can swap it at will. That is the freedom encapsulation provides.</p>
+<p>Second, <strong>avoid writing unnamable or inconvenient type names</strong>. The sort of long, closure-laden types shown above are ugly to write by hand and error-prone; closure types are fundamentally unnamable. <code>impl Trait</code> spares the author from exposing these internal details in the signature.</p>
+<blockquote>
+<p>Analogy: <code>impl Trait</code> in return position is like a “dispensing slot” — you only care that what comes out is “something iterable” (satisfies <code>Iterator</code>). Which assembly line the factory uses internally is the factory’s business, not yours.</p>
+</blockquote>
+<h3 id="its-restriction-only-one-concrete-type-per-invocation"><a class="header" href="#its-restriction-only-one-concrete-type-per-invocation">Its restriction: only one concrete type per invocation</a></h3>
+<p>Opaque return types have a hard rule: <strong>a single invocation can only return one definite concrete type</strong>. That means you cannot return different concrete types from different branches based on a runtime condition:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self {
-    self.envs.push((key.into(), value.into()));
-    self
+</span>fn make_iter(flag: bool) -&gt; impl Iterator&lt;Item = i32&gt; {
+    if flag {
+        vec![1, 2, 3].into_iter()   // concrete type A: std::vec::IntoIter&lt;i32&gt;
+    } else {
+        [4, 5].into_iter()           // concrete type B: a different iterator type — compiler rejects
+    }
 }
 <span class="boring">}</span></code></pre>
-<p>Every time you call <code>.env("PATH", "/usr/bin")</code>, the method body <code>push</code>es one <code>(key, value)</code> pair to the tail of <code>envs</code>. Call it three times, and <code>envs</code> contains three pairs.</p>
-<blockquote>
-<p>Wait — there is a design choice here worth a second look: why are environment variables stored as <code>Vec&lt;(key, value)&gt;</code> rather than a map (like JS’s <code>Map</code> or Python’s <code>dict</code>)? Because this spec list needs to <strong>preserve the order you set</strong>, and also <strong>allow the same key to appear multiple times</strong> — a later entry overrides an earlier one, which perfectly matches the “environment variable override” semantics. With <code>Vec&lt;(key, value)&gt;</code>, both ordering and duplication come naturally; most map types automatically deduplicate and do not guarantee order, making them a worse fit.</p>
-</blockquote>
-<h2 id="9-processspecs-implementation-builder-and-accessor"><a class="header" href="#9-processspecs-implementation-builder-and-accessor">9. ProcessSpec’s implementation: builder and accessor</a></h2>
-<p>With the definition clear, look at the methods on <code>impl ProcessSpec</code> and you will see they split neatly into two groups.</p>
-<p><strong>The first group is “configuration” methods, forming the so-called builder pattern:</strong></p>
+<p>The two branches return different concrete types, and the compiler rejects it outright — because <code>impl Trait</code> promises “one specific concrete type,” not “pick one from several.” If you genuinely need “return a different type depending on the runtime situation,” you need a different tool: the <code>dyn Trait</code> (trait object) covered in the next section.</p>
+<p>💡 Worth clarifying a common point of confusion: <strong>return-position <code>impl Trait</code> does not introduce dynamic dispatch</strong>. The concrete type is known at compile time (crystal clear to the author), just hidden from the caller. Calling its methods is still a direct-jump static dispatch, zero overhead. What actually introduces runtime overhead is explicitly writing <code>dyn</code> — that is the next section’s topic.</p>
+<h2 id="5-static-dispatch-vs-dynamic-dispatch-impl-trait-and-dyn-trait"><a class="header" href="#5-static-dispatch-vs-dynamic-dispatch-impl-trait-and-dyn-trait">5. Static dispatch vs. dynamic dispatch: <code>impl Trait</code> and <code>dyn Trait</code></a></h2>
+<p>Earlier we said input-position <code>impl Trait</code> (and generics) use <strong>static dispatch</strong> — the compiler copies a version of the code for each type. So is there a “don’t copy, decide at runtime” approach? Yes: the <strong>trait object</strong>, written as <code>dyn Trait</code>. It uses <strong>dynamic dispatch</strong>.</p>
+<p>A side-by-side comparison:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub fn new(program: impl Into&lt;OsString&gt;) -&gt; Self { ... }
+</span>use std::fmt::Debug;
 
-pub fn arg(mut self, arg: impl Into&lt;OsString&gt;) -&gt; Self { ... }
-pub fn args&lt;Args, Arg&gt;(mut self, args: Args) -&gt; Self where ... { ... }
-pub fn cwd(mut self, cwd: impl Into&lt;PathBuf&gt;) -&gt; Self { ... }
-pub fn env(mut self, key: impl Into&lt;OsString&gt;, value: impl Into&lt;OsString&gt;) -&gt; Self { ... }
-pub fn stdin(mut self, stdin: ProcessStdio) -&gt; Self { ... }
-pub fn stdout(mut self, stdout: ProcessStdio) -&gt; Self { ... }
-pub fn stderr(mut self, stderr: ProcessStdio) -&gt; Self { ... }
-pub fn kill_on_drop(mut self) -&gt; Self { ... }
-pub fn keep_alive_on_drop(mut self) -&gt; Self { ... }
+// Static dispatch: one code copy per type, method calls are direct jumps
+fn print_static(value: &amp;impl Debug) {
+    println!("{:?}", value);
+}
+
+// Dynamic dispatch: a single copy of code, method address looked up at runtime
+fn print_dyn(value: &amp;dyn Debug) {
+    println!("{:?}", value);
+}
 <span class="boring">}</span></code></pre>
-<p>Their signatures all look nearly identical: <code>mut self -&gt; Self</code> — take the old <code>self</code>, modify it, return a new one. Revisiting <code>mut</code> from the beginning of this post: each of these methods needs to <strong>modify</strong> some field of <code>self</code>, so the receiver must be <code>mut self</code>. And precisely because each method returns a new <code>Self</code>, you can chain them:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>let spec = ProcessSpec::new("echo")
-    .arg("hello")
-    .env("RUST_LOG", "debug")
-    .stdout(ProcessStdio::Piped);
-<span class="boring">}</span></code></pre>
+<p>The <code>dyn</code> in <code>dyn Debug</code> stands for “dynamic.” It means “some type implementing the <code>Debug</code> trait, but which one specifically is only known at runtime.” The mechanism behind it is called a <strong>vtable</strong>: for every type that implements <code>Debug</code>, the compiler prepares a “method address table.” A <code>&amp;dyn Debug</code> actually carries two pointers — one to the data itself, one to that vtable. When a method is called, it first consults the vtable for “where is this type’s <code>Debug</code> method,” then jumps to execute. That extra table lookup and indirect jump is the <strong>runtime overhead of dynamic dispatch</strong>.</p>
+<p>So when should you actually use <code>dyn</code>? Generally in two cases:</p>
+<ol>
+<li><strong>The set of types is unknown at compile time, or is very large</strong>. For example, a collection holding several different kinds of “animals” — <code>Vec&lt;Box&lt;dyn Animal&gt;&gt;</code> — in this case you cannot monomorphize a generic for every animal (the types may not even be exhaustively known at compile time), so <code>dyn</code> is the only way to unify them. (<code>Box</code> is a smart pointer that “boxes a value onto the heap”; here it ensures each element in the collection has a uniform size. Details in a later post.)</li>
+<li><strong>You want to shrink the binary</strong>. Earlier we said monomorphization bloats code; if you find a generic instantiated for dozens of types and the binary is ballooning, switching to <code>dyn</code> can merge dozens of copies into one, at the cost of one extra lookup per call.</li>
+</ol>
+<p>In this <code>process</code> crate, everything so far has been generics (static dispatch) — <code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code>, <code>Vec&lt;(OsString, OsString)&gt;</code>, the various <code>impl Trait</code> uses, all of them. <code>dyn</code> won’t appear heavily until we encounter “a single collection holding many different types” scenarios, which typically show up in async task scheduling, plugin systems, and the like — we will save that for later.</p>
 <blockquote>
-<p>As an aside on that <code>&lt;Args, Arg&gt;</code> and trailing <code>where ...</code> in <code>args</code>’s signature: that is how generic methods are written, meaning “my method can accept anything that can be iterated to produce elements that can be converted into <code>OsString</code>.” This is advanced Rust generics; for today, just recognize the shape. A deeper introduction will come later.</p>
+<p>This trade-off runs through all of Rust: when you can use static dispatch (generics / <code>impl Trait</code>), use it — zero overhead is the default goal. Only when you genuinely need “an array that accepts everything” or “objects whose types cannot be known at compile time” do you step back to <code>dyn</code>, trading one table lookup for flexibility.</p>
 </blockquote>
-<p><strong>The second group is “access” methods</strong>, all using <code>&amp;self</code>, read-only and non-mutating:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub fn program(&amp;self) -&gt; &amp;OsStr { ... }
-pub fn args_iter(&amp;self) -&gt; impl Iterator&lt;Item = &amp;OsStr&gt; { ... }
-pub fn cwd_path(&amp;self) -&gt; Option&lt;&amp;Path&gt; { ... }
-pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; { ... }
-pub fn stdin_policy(&amp;self) -&gt; ProcessStdio { ... }
-pub fn stdout_policy(&amp;self) -&gt; ProcessStdio { ... }
-pub fn stderr_policy(&amp;self) -&gt; ProcessStdio { ... }
-pub fn should_kill_on_drop(&amp;self) -&gt; bool { ... }
-<span class="boring">}</span></code></pre>
-<p>They do not consume <code>self</code> (using <code>&amp;self</code>, echoing last chapter’s “borrow” concept); they only <strong>look up</strong> the contents written into the spec list and show them to you. Configuration and access, clearly separated responsibilities: one group handles “editing the list,” using <code>mut self</code>; the other group handles “reading the list,” using <code>&amp;self</code>.</p>
-<h2 id="10-recap"><a class="header" href="#10-recap">10. Recap</a></h2>
+<h2 id="6-common-pitfalls"><a class="header" href="#6-common-pitfalls">6. Common pitfalls</a></h2>
+<p><strong>Pitfall 1: When returning <code>impl Trait</code>, every branch must return the same concrete type.</strong> The <code>make_iter</code> in section 4 is the cautionary example. Beginners most commonly hit this when trying to “return two different iterators / futures depending on a condition.” The fix is either to unify both branches into the same concrete type, or switch to <code>Box&lt;dyn Trait&gt;</code> (trait object + boxing) and let runtime decide.</p>
+<p><strong>Pitfall 2: Multiple <code>impl Trait</code> in input position are independent types.</strong> The end of section 3 mentioned this: in <code>fn both(a: impl PartialEq, b: impl PartialEq)</code>, <code>a</code> and <code>b</code> each have their own anonymous type parameter, unrelated to each other. If your intent is “both parameters must be the same type,” writing it this way won’t catch the mistake — you must fall back to a named generic: <code>fn both&lt;T: PartialEq&gt;(a: T, b: T)</code>.</p>
+<p><strong>Pitfall 3 (a reminder): Input <code>impl Trait</code> increases binary size.</strong> Every additional type passed in produces one more code copy. For small, high-frequency methods like <code>arg</code>, if call sites pass in a dozen different types, monomorphization generates a dozen copies. Most of the time this is not worth worrying about, but if you are doing size-sensitive embedded development, it is something to keep in mind.</p>
+<h2 id="7-recap"><a class="header" href="#7-recap">7. Recap</a></h2>
 <ul>
-<li><strong>Rust variables are immutable by default</strong>; to mutate, you must explicitly write <code>mut</code>. This default rule both prevents “accidental mutation” bugs and makes “which values change” obvious when reading code. Excess <code>mut</code> will even trigger a compiler warning telling you to remove it.</li>
-<li>Rust’s iron law is <strong>“shared XOR mutable”</strong>: either multiple read-only borrows <code>&amp;</code>, or one mutable borrow <code>&amp;mut</code> — never both. This rule is enforced at compile time by the <strong>borrow checker</strong>, eradicating data races and iterator invalidation at the root. Its full mechanism we save for a future deep dive.</li>
-<li><code>mut</code> lets you enjoy the safety of “immutable by default” while also <strong>mutating in place</strong> when needed, combining functional safety with imperative performance (zero-cost abstraction).</li>
-<li><code>ProcessSpec</code> is a “spec list” for configuring a child process. Its fields include <code>OsString</code> (OS-native string, for command lines/environment variables) and <code>Vec&lt;(OsString, OsString)&gt;</code> (a list of key-value pairs, preserving order and allowing duplicate-override).</li>
-<li><code>Vec</code> is a growable array; angle brackets <code>&lt;&gt;</code> hold the <strong>generic parameter</strong> specifying what type the container holds; parentheses <code>(A, B)</code> form a <strong>tuple</strong>, packing values in a fixed order.</li>
-<li><code>ProcessSpec</code>’s methods split into two groups: <strong>builder</strong> configuration methods use <code>mut self -&gt; Self</code>, achieving chainable calls by returning a new <code>Self</code>; <strong>accessor</strong> methods use <code>&amp;self</code>, read-only and non-mutating.</li>
+<li>In <code>ProcessSpec</code>, <code>arg</code>’s parameter <code>impl Into&lt;OsString&gt;</code> and <code>envs</code>’s return type <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code> both use the <code>impl</code> keyword, but in opposite directions.</li>
+<li><strong><code>impl Trait</code> in input position</strong> (on parameters) is essentially syntactic sugar for <strong>generics</strong>, equivalent to <code>&lt;T: Trait&gt;</code>; the <strong>caller</strong> decides the concrete type. It uses <strong>static dispatch</strong>: at compile time, a dedicated copy of the code is <strong>monomorphized</strong> for each concrete type, with zero runtime overhead, at the potential cost of larger binary size. Its only practical difference from named generics is that the type parameter is anonymous and cannot be shared across multiple parameter positions.</li>
+<li><strong><code>impl Trait</code> in return position</strong> (on return types) is called an <strong>opaque return type</strong> (RPIT); the <strong>implementor</strong> decides the concrete type, which the caller cannot see — only that it satisfies a given trait. The benefits are <strong>encapsulation</strong> (the internal implementation can be swapped at any time) and <strong>not having to write complex or unnamable type names</strong> (such as closure-laden iterator types). It is still static dispatch, zero overhead; the hard rule is that only one concrete type can be returned per invocation.</li>
+<li>The counterpart to <code>impl Trait</code>/generics is <strong><code>dyn Trait</code> (trait objects)</strong>, which uses <strong>dynamic dispatch</strong>: a <strong>vtable</strong> is consulted at runtime to find the method address, incurring an indirect call overhead, but it can unify types that are unknown or too numerous at compile time into a single container (e.g., <code>Vec&lt;Box&lt;dyn Trait&gt;&gt;</code>).</li>
 </ul>
-<p>In the next post, we will tackle two types in <code>ProcessSpec</code> that we have not yet touched — <code>Option</code> and <code>PathBuf</code> — and push today’s brief taste of the borrow checker one step further.</p>
+<p>In the next post, armed with this understanding of “who chooses the type,” we return to <code>tokio_process.rs</code> and see how <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> actually implement the interface contract from Post 05 — where we will encounter <code>Arc</code>, <code>Mutex</code>, and channels, and with ownership, borrowing, and <code>impl Trait</code> already under our belt, they will read much more smoothly.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="02-enum-derive-self-match.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="06-ownership-borrow-lifetime.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="04-option-pathbuf-borrow.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="terminology.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -386,11 +354,11 @@ pub fn should_kill_on_drop(&amp;self) -&gt; bool { ... }
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="02-enum-derive-self-match.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="06-ownership-borrow-lifetime.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="04-option-pathbuf-borrow.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="terminology.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
