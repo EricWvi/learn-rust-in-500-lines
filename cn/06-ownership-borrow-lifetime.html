@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6b150a04.js";
+            window.path_to_searchindex_js = "searchindex-8895d574.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-1a0bbb5d.js"></script>
+        <script src="toc-ea239a89.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -377,6 +377,7 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
 <li><strong>borrow checker</strong> 是编译期执行上述检查的组件；把它当尽责的审稿人，而非敌人——它拦下的多是 use-after-free、悬空指针、数据竞争这类真 bug。</li>
 <li><strong>生命周期（lifetime）</strong> 是引用的“保质期“，保证引用不比数据活得久（借书证 vs 图书馆）。<code>cwd_path(&amp;self) -&gt; &amp;Path</code> 的返回引用生命周期绑定到 <code>self</code>（通常由 elision 省略）；不够时用 <code>'a</code> 显式标注，如 <code>fn f&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code>。<code>'static</code> 是活到程序结束的特殊生命周期。</li>
 </ul>
+<p>下一篇，我们带着这套理解回到 <code>tokio_process.rs</code>，看 <code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code> 怎么把这份接口约定真正实现出来——届时会碰到 <code>Arc</code>、<code>Mutex</code> 和通道，而有了所有权和借用打底，它们读起来会顺很多。</p>
 
                     </main>
 
@@ -386,7 +387,7 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="07-impl-trait-static-dispatch-opaque.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="terminology.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -400,7 +401,7 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="07-impl-trait-static-dispatch-opaque.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="terminology.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6b150a04.js";
+            window.path_to_searchindex_js = "searchindex-8895d574.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-1a0bbb5d.js"></script>
+        <script src="toc-ea239a89.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -245,13 +245,6 @@
 <tr><td>lifetime（生命周期，<code>'a</code>）</td><td>引用的“保质期“，编译期保证引用不比数据活得久；可用 <code>'a</code> 显式标注或被 elision 省略。</td><td>06</td></tr>
 <tr><td>lifetime elision（省略）</td><td>编译器按默认规则自动补全常见生命周期，免手写。</td><td>06</td></tr>
 <tr><td>NLL（非词法生命周期）</td><td>借用在“最后一次使用“处结束，而非作用域末尾；让合法借用更早释放。</td><td>06</td></tr>
-<tr><td><code>impl Trait</code>（输入位置 / 参数位置）</td><td>写在参数类型上的 <code>impl Trait</code>，是泛型的语法糖；由调用者决定具体类型。</td><td>07</td></tr>
-<tr><td>static dispatch（静态分发）</td><td>编译期为每种类型单态化出专门代码、方法调用直接跳转的方式，零运行时开销。</td><td>07</td></tr>
-<tr><td>monomorphization（单态化）</td><td>编译器对每种实际类型各“复印“一份专门代码的过程，是静态分发的实现手段。</td><td>07</td></tr>
-<tr><td>opaque return type（不透明返回类型）/ <code>impl Trait</code>（返回位置）/ RPIT</td><td>返回位置的 <code>impl Trait</code>；由实现者决定具体类型，调用者只见其 trait；仍是静态分发。</td><td>07</td></tr>
-<tr><td>trait object（trait 对象，<code>dyn Trait</code>）</td><td>运行时才确定具体类型的值，能统一收纳多种类型；走动态分发。</td><td>07</td></tr>
-<tr><td>dynamic dispatch（动态分发）</td><td>运行时通过虚表查找方法地址再调用的方式，有一次间接开销。</td><td>07</td></tr>
-<tr><td>vtable（虚表）</td><td>记录某类型各方法地址的表；trait 对象靠它实现动态分发。</td><td>07</td></tr>
 </tbody>
 </table>
 </div>
@@ -260,7 +253,7 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="06-ownership-borrow-lifetime.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -271,7 +264,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="06-ownership-borrow-lifetime.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 

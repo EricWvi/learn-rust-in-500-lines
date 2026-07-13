@@ -38,10 +38,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6b150a04.js";
+            window.path_to_searchindex_js = "searchindex-8895d574.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-1a0bbb5d.js"></script>
+        <script src="toc-ea239a89.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -1214,163 +1214,7 @@ fn longer(x: &amp;str, y: &amp;str) -&gt; &amp;str {
 <li><strong>borrow checker</strong> 是编译期执行上述检查的组件；把它当尽责的审稿人，而非敌人——它拦下的多是 use-after-free、悬空指针、数据竞争这类真 bug。</li>
 <li><strong>生命周期（lifetime）</strong> 是引用的“保质期“，保证引用不比数据活得久（借书证 vs 图书馆）。<code>cwd_path(&amp;self) -&gt; &amp;Path</code> 的返回引用生命周期绑定到 <code>self</code>（通常由 elision 省略）；不够时用 <code>'a</code> 显式标注，如 <code>fn f&lt;'a&gt;(s: &amp;'a str) -&gt; &amp;'a str</code>。<code>'static</code> 是活到程序结束的特殊生命周期。</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="第-07-篇impl-trait-的两种位置静态分发与不透明返回类型"><a class="header" href="#第-07-篇impl-trait-的两种位置静态分发与不透明返回类型">第 07 篇：<code>impl Trait</code> 的两种位置——静态分发与不透明返回类型</a></h1>
-<h2 id="一两个一直被我们跳过的方法"><a class="header" href="#一两个一直被我们跳过的方法">一、两个一直被我们跳过的方法</a></h2>
-<p>第三篇我们打开 <code>spec.rs</code> 读 <code>ProcessSpec</code> 时，讲过它的字段、讲过它那套“改完自己再返回“的 builder 套路。但有两行签名，我当时一笔带过、完全没展开：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub fn arg(mut self, arg: impl Into&lt;OsString&gt;) -&gt; Self {
-    self.args.push(arg.into());
-    self
-}
-
-pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
-    self.envs
-        .iter()
-        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
-}
-<span class="boring">}</span></code></pre>
-<p>第一行 <code>arg</code>：参数是 <code>impl Into&lt;OsString&gt;</code>。
-第二行 <code>envs</code>：返回值是 <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code>。</p>
-<p>两个方法都用到了 <code>impl</code> 关键字，看起来像一家人。但今天我们要看清一件反直觉的事：<strong>这俩 <code>impl</code> 虽然长得一模一样，方向却正好相反</strong>——一个把“选类型的权力“交给调用者，另一个把它攥在实现者手里。理解了这个差别，顺带就能解锁 Rust 里两个高频概念：<strong>静态分发</strong> 和 <strong>不透明返回类型</strong>。</p>
-<h2 id="二同一个-impl方向正好相反"><a class="header" href="#二同一个-impl方向正好相反">二、同一个 <code>impl</code>，方向正好相反</a></h2>
-<p><code>impl Trait</code> 这套语法，字面意思是“某个实现了 <code>Trait</code> 的类型“。但它在函数签名里出现的位置不同，含义就截然不同。先把核心对比摆出来：</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th></th><th>输入位置（参数）的 <code>impl Trait</code></th><th>返回位置的 <code>impl Trait</code></th></tr>
-</thead>
-<tbody>
-<tr><td>例子</td><td><code>arg: impl Into&lt;OsString&gt;</code></td><td><code>-&gt; impl Iterator&lt;...&gt;</code></td></tr>
-<tr><td>谁决定具体类型？</td><td><strong>调用者</strong></td><td><strong>函数的实现者</strong></td></tr>
-<tr><td>本质</td><td>泛型的一种写法</td><td>不透明返回类型</td></tr>
-<tr><td>分发方式</td><td>静态分发</td><td>仍是静态分发</td></tr>
-</tbody>
-</table>
-</div>
-<p>这张表是整篇文章的骨架。同样是 <code>impl</code>，一个把类型选择权递出去、一个把它藏起来。下面三节，我们逐个拆解。</p>
-<h2 id="三输入位置的-impl-trait泛型的一种写法"><a class="header" href="#三输入位置的-impl-trait泛型的一种写法">三、输入位置的 <code>impl Trait</code>：泛型的一种写法</a></h2>
-<h3 id="它其实就是泛型"><a class="header" href="#它其实就是泛型">它其实就是泛型</a></h3>
-<p><code>arg: impl Into&lt;OsString&gt;</code> 这种写在<strong>参数类型</strong>上的 <code>impl Trait</code>，本质是<strong>泛型</strong>的语法糖。等价于下面这种写法：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub fn arg&lt;T: Into&lt;OsString&gt;&gt;(mut self, arg: T) -&gt; Self {
-    self.args.push(arg.into());
-    self
-}
-<span class="boring">}</span></code></pre>
-<p>第三篇讲 <code>Vec&lt;OsString&gt;</code> 时你已经见过泛型类型；这里是<strong>泛型函数</strong>。<code>&lt;T: Into&lt;OsString&gt;&gt;</code> 声明一个类型参数 <code>T</code>，冒号后面是约束——要求 <code>T</code> 必须实现 <code>Into&lt;OsString&gt;</code>。<code>impl Into&lt;OsString&gt;</code> 只是把“声明类型参数 + 加约束“这两步合并成一行，少写一个名字而已。两种写法几乎完全等价。</p>
-<p>那么“谁来决定 <code>T</code> 到底是什么“？答案是<strong>调用者</strong>：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>spec.arg("--verbose")            // 编译器推断 T = &amp;str
-    .arg(String::from("hello")); // 编译器推断 T = String
-<span class="boring">}</span></code></pre>
-<p>两次调用，<code>arg</code> 的 <code>T</code> 分别被推断成 <code>&amp;str</code> 和 <code>String</code>——只要它们实现了 <code>Into&lt;OsString&gt;</code>，就都能收。类型选择权在调用者手上，函数本身只负责“声明我能接纳什么样的东西“。</p>
-<blockquote>
-<p>一个类比：输入位置的 <code>impl Trait</code> 像一道写着“持会员卡者入内“的关卡——谁来（哪个具体类型）由你自己决定，只要你有卡（实现了那个 trait）。</p>
-</blockquote>
-<h3 id="为什么这么写into-让-api-更宽容"><a class="header" href="#为什么这么写into-让-api-更宽容">为什么这么写：<code>Into</code> 让 API 更宽容</a></h3>
-<p>顺带能回答一个早就该问的问题：为什么参数收成 <code>impl Into&lt;OsString&gt;</code>，而不是直接写 <code>OsString</code>？</p>
-<p>因为 <code>Into&lt;OsString&gt;</code> 是一个<strong>约定</strong>，而标准库已经为常见类型实现了 <code>OsString: From&lt;&amp;str&gt;</code> 和 <code>OsString: From&lt;String&gt;</code>——有了 <code>From</code> 就自动得到对应的 <code>Into</code>（这是 <code>From</code> / <code>Into</code> 这对 trait 的内置规则），所以 <code>&amp;str</code>、<code>String</code> 都满足这个约定。把参数收成 <code>impl Into&lt;OsString&gt;</code>，调用者就能直接传字符串字面量、传 <code>String</code>，不必每次都手动 <code>.into()</code> 转换。这就是为什么 <code>ProcessSpec::new("echo")</code> 能直接传入 <code>&amp;str</code> 的原因——如果参数写死成 <code>OsString</code>，调用方每处都得自己 <code>OsString::from("...")</code>，要麻烦得多。</p>
-<p>这套思路贯穿整个 <code>ProcessSpec</code>：<code>new(impl Into&lt;OsString&gt;)</code>、<code>cwd(impl Into&lt;PathBuf&gt;)</code>、<code>env(impl Into&lt;OsString&gt;, impl Into&lt;OsString&gt;)</code>——统统用 <code>Into</code> 放宽入口。<code>arg</code> 方法体里那行 <code>arg.into()</code>，正是在“把传入的 <code>T</code> 转成统一的 <code>OsString</code>“。</p>
-<h3 id="静态分发与单态化"><a class="header" href="#静态分发与单态化">静态分发与单态化</a></h3>
-<p>这就引出这一篇的第二个关键词：<strong>静态分发（static dispatch）</strong>。</p>
-<p>上面两次 <code>arg</code> 调用，传入的类型不同。编译器并不会真的生成一个“万能的 <code>arg</code>“在运行时判断类型。它做的事叫<strong>单态化（monomorphization）</strong>——针对每种实际传入的类型，各“复印“一份专门的 <code>arg</code> 出来：一份专门处理 <code>&amp;str</code>，一份专门处理 <code>String</code>。每份副本里，<code>T</code> 都被替换成了具体类型，<code>.into()</code> 也变成了针对那个具体类型的、确定的函数调用。</p>
-<p>结果是：运行时根本不需要再去“判断 <code>T</code> 是什么、该调哪个 <code>into</code>“——这步在编译期就定死了，每份副本里的代码都是直来直去的直接调用。这种“调用哪个方法在编译期就确定、直接跳转“的方式，就是<strong>静态分发</strong>。它没有运行时开销，正是第三篇提过的<strong>零成本抽象</strong>在分发上的体现。</p>
-<p>零开销是好处，代价是什么？是<strong>二进制体积（binary size）</strong>：每种用到的类型，都额外复印一份代码，编译出来的二进制会变大。<code>arg</code> 这种小函数无所谓，但对那些体量大的泛型函数，单态化会让二进制明显膨胀。这是 Rust 一个常见的取舍——用空间换零运行时成本。</p>
-<h3 id="一个细微但重要的差别"><a class="header" href="#一个细微但重要的差别">一个细微但重要的差别</a></h3>
-<p>输入位置的 <code>impl Trait</code> 和具名泛型 <code>&lt;T: ...&gt;</code> 有一个实际差别：用 <code>impl Trait</code> 时，类型参数是<strong>匿名</strong>的，你拿不到它的名字。这带来一个限制——当你需要“两个参数必须是同一个类型“时，<code>impl Trait</code> 做不到：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// 用 impl Trait：a 和 b 可以是不同的类型
-fn both(a: impl PartialEq, b: impl PartialEq) {}
-
-// 必须用具名泛型，才能强制 a、b 同类型
-fn both_same&lt;T: PartialEq&gt;(a: T, b: T) {}
-<span class="boring">}</span></code></pre>
-<p><code>both</code> 里两个 <code>impl PartialEq</code> 是各自独立的匿名类型，互不相干；<code>both_same</code> 用一个具名的 <code>T</code>，才把两者绑成同一个类型。所以 <code>impl Trait</code> 省事，但牺牲了对类型的命名能力。这个差别后面“常见的坑“还会再提一次。</p>
-<h2 id="四返回位置的-impl-trait不透明返回类型"><a class="header" href="#四返回位置的-impl-trait不透明返回类型">四、返回位置的 <code>impl Trait</code>：不透明返回类型</a></h2>
-<p>现在看 <code>envs</code>：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub fn envs(&amp;self) -&gt; impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt; {
-    self.envs
-        .iter()
-        .map(|(key, value)| (key.as_os_str(), value.as_os_str()))
-}
-<span class="boring">}</span></code></pre>
-<p>返回值上的 <code>impl Iterator&lt;...&gt;</code>，和参数上的 <code>impl Trait</code> 形似而神不似。它叫<strong>不透明返回类型（opaque return type）</strong>——也叫 RPIT（Return-Position Impl Trait，返回位置 impl Trait）。</p>
-<h3 id="谁决定具体类型实现者"><a class="header" href="#谁决定具体类型实现者">谁决定具体类型？实现者</a></h3>
-<p>这一次，类型选择权在<strong>函数的实现者</strong>（也就是写这个函数的人）手里。函数内部到底返回了什么具体类型，由 <code>self.envs.iter().map(...)</code> 的实际返回类型决定。但外部调用者<strong>看不到</strong>这个具体类型——签名只告诉你“它返回某个实现了 <code>Iterator</code> 的东西，每轮产出一个 <code>(&amp;OsStr, &amp;OsStr)</code>“。</p>
-<p>那个被藏起来的具体类型，若硬要写全，大概长这样：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// 极度简化：真实的类型还套着一层带闭包的 Map
-std::slice::Iter&lt;'_, (OsString, OsString)&gt;
-<span class="boring">}</span></code></pre>
-<p>而且 <code>.map(...)</code> 里那个闭包的类型，是 Rust 编译器给每个闭包单独生成的<strong>匿名类型</strong>，源码里根本写不出名字。所以这个真实的返回类型，作者想老老实实写在签名上都写不出来。<code>impl Iterator</code> 正好绕开了这个难题：<strong>我保证返回的东西实现了 <code>Iterator</code>，具体是什么你别管。</strong></p>
-<h3 id="为什么要藏起来"><a class="header" href="#为什么要藏起来">为什么要藏起来</a></h3>
-<p>藏起来有两个实在的好处。</p>
-<p>第一，<strong>封装（encapsulation）</strong>。调用者只依赖“它是个 <code>Iterator</code>“这一层契约，不依赖具体类型。哪天 <code>envs</code> 的内部实现换了——比如改用别的方式构造迭代器——只要新类型仍然实现 <code>Iterator</code>、产出 <code>(&amp;OsStr, &amp;OsStr)</code>，调用方的代码一行都不用改。具体类型被挡在 API 边界之内，作者随时能换，这就是封装带来的自由。</p>
-<p>第二，<strong>免去写不出、也懒得写的具体类型名</strong>。像上面那种又长又带闭包的类型，手写既丑陋又容易错；闭包类型更是根本无法命名。<code>impl Trait</code> 让作者不必把这些内部细节暴露到签名上。</p>
-<blockquote>
-<p>类比：返回位置的 <code>impl Trait</code> 像一道“出货口“——你只关心从口子里递出来的是“一个能迭代的东西“（满足 <code>Iterator</code>），至于工厂内部用哪条流水线造的，是工厂的事，你无需知道。</p>
-</blockquote>
-<h3 id="它的限制一次只能是一种具体类型"><a class="header" href="#它的限制一次只能是一种具体类型">它的限制：一次只能是一种具体类型</a></h3>
-<p>不透明返回类型有一条硬规则：<strong>一次调用只能返回一种确定的具体类型</strong>。也就是说，你不能根据运行时条件，在不同分支返回不同的具体类型：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn make_iter(flag: bool) -&gt; impl Iterator&lt;Item = i32&gt; {
-    if flag {
-        vec![1, 2, 3].into_iter()   // 具体类型 A：std::vec::IntoIter&lt;i32&gt;
-    } else {
-        [4, 5].into_iter()           // 具体类型 B：另一种迭代器类型——编译器拒绝
-    }
-}
-<span class="boring">}</span></code></pre>
-<p>两个分支返回的具体类型不同，编译器直接拒绝——因为 <code>impl Trait</code> 承诺的是“某一个确定的具体类型“，而不是“好几个类型里挑一个“。如果你确实需要“运行时根据情况返回不同类型“，那就得换工具：用下一节要讲的 <code>dyn Trait</code>（trait 对象）。</p>
-<p>💡 顺便澄清一个容易混淆的点：<strong>返回位置的 <code>impl Trait</code> 并不会带来动态分发</strong>。具体类型在编译期就是确定的（对作者而言一清二楚），只是对调用者藏起来了。调用它的方法仍然是直接跳转的静态分发，零开销。真正引入运行时开销的是显式写 <code>dyn</code>，那是下一节的内容。</p>
-<h2 id="五静态分发-vs-动态分发impl-trait-与-dyn-trait"><a class="header" href="#五静态分发-vs-动态分发impl-trait-与-dyn-trait">五、静态分发 vs 动态分发：<code>impl Trait</code> 与 <code>dyn Trait</code></a></h2>
-<p>前面说输入位置的 <code>impl Trait</code>（以及泛型）走的是<strong>静态分发</strong>——编译期为每种类型复印一份代码。那么有没有“不复印、运行时再决定“的做法？有，就是 <strong>trait 对象（trait object）</strong>，写成 <code>dyn Trait</code>。它走的是<strong>动态分发（dynamic dispatch）</strong>。</p>
-<p>两相对比：</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use std::fmt::Debug;
-
-// 静态分发：每种类型各复印一份代码，方法调用是直接跳转
-fn print_static(value: &amp;impl Debug) {
-    println!("{:?}", value);
-}
-
-// 动态分发：只有一份代码，方法地址运行时再查
-fn print_dyn(value: &amp;dyn Debug) {
-    println!("{:?}", value);
-}
-<span class="boring">}</span></code></pre>
-<p><code>dyn Debug</code> 里的 <code>dyn</code>，是“dynamic“的缩写。它表示“<code>Debug</code> 这个 trait 的某种类型，具体是什么运行时才知道“。背后的机制叫<strong>虚表（vtable）</strong>：每个实现了 <code>Debug</code> 的类型，编译器都替它准备一张“方法地址表“；一个 <code>&amp;dyn Debug</code> 实际上背着两个指针——一个指向数据本身，一个指向那张虚表。调用方法时，先去虚表里查“这个类型的 <code>Debug</code> 方法在哪个地址“，再跳过去执行。多出来的这一次查表和一次间接跳转，就是<strong>动态分发的运行时开销</strong>。</p>
-<p>那么什么时候才该用 <code>dyn</code>？通常在两种情况下：</p>
-<ol>
-<li><strong>类型的种类在编译期未知、或非常多</strong>。比如一个向量里要装好几种不同的“动物“——<code>Vec&lt;Box&lt;dyn Animal&gt;&gt;</code>——这时没法给每种动物各复印一份泛型代码（它们的类型甚至可能在编译期都列不全），只能用 <code>dyn</code> 统一收纳。（<code>Box</code> 是一种“把值装箱到堆上“的智能指针，这里用来让集合里每个元素大小一致；细节以后再讲。）</li>
-<li><strong>想压缩二进制体积</strong>。前面说单态化会让代码膨胀；当你发现某个泛型被几十种类型实例化、二进制涨得厉害时，改用 <code>dyn</code> 能把几十份副本合并成一份，代价是每次调用多一次查表。</li>
-</ol>
-<p>这个 <code>process</code> crate 里目前几乎全是泛型（静态分发）——<code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code>、<code>Vec&lt;(OsString, OsString)&gt;</code>、各种 <code>impl Trait</code>，都是。<code>dyn</code> 要等到我们碰到“一个集合装好几种类型“的场景才会大量出场，那通常是异步任务调度、插件系统之类的地方，留到后面。</p>
-<blockquote>
-<p>这对取舍贯穿整个 Rust：能用静态分发（泛型 / <code>impl Trait</code>）就用它，零开销是默认追求；只有当“需要写出包容万物的数组、或者处理编译期无法预知的对象“时，才退一步用 <code>dyn</code>，用一次查表的代价换来灵活性。</p>
-</blockquote>
-<h2 id="六常见的坑"><a class="header" href="#六常见的坑">六、常见的坑</a></h2>
-<p><strong>坑一：返回 <code>impl Trait</code> 时，所有分支必须返回同一个具体类型。</strong> 第四节的 <code>make_iter</code> 就是反面教材。初学者最常在“想根据条件返回两种不同的迭代器 / future“时撞上。解法要么把两个分支统一成同一种具体类型，要么改用 <code>Box&lt;dyn Trait&gt;</code>（trait 对象 + 装箱），让运行时来挑。</p>
-<p><strong>坑二：多个输入位置的 <code>impl Trait</code>，彼此是各自独立的类型。</strong> 第三节末尾提过：<code>fn both(a: impl PartialEq, b: impl PartialEq)</code> 里 <code>a</code>、<code>b</code> 各有自己的匿名类型参数，互不相干。如果你本意是“两个参数必须同类型“，这样写编译器不会帮你——必须回到具名泛型 <code>fn both&lt;T: PartialEq&gt;(a: T, b: T)</code>。</p>
-<p><strong>坑三（提醒）：输入 <code>impl Trait</code> 会增大二进制。</strong> 每多一种传入类型，就多复印一份代码。对像 <code>arg</code> 这样小而高频的方法，调用点若传入十几种不同类型，单态化出来的副本就有十几份。多数时候不必担心，但如果你在做体积敏感的嵌入式开发，这是值得留意的一处。</p>
-<h2 id="七小结-1"><a class="header" href="#七小结-1">七、小结</a></h2>
-<ul>
-<li><code>ProcessSpec</code> 里 <code>arg</code> 的参数 <code>impl Into&lt;OsString&gt;</code>、<code>envs</code> 的返回值 <code>impl Iterator&lt;Item = (&amp;OsStr, &amp;OsStr)&gt;</code>，都用 <code>impl</code> 关键字，但方向相反。</li>
-<li><strong>输入位置的 <code>impl Trait</code></strong>（参数上）本质是<strong>泛型</strong>的语法糖，等价于 <code>&lt;T: Trait&gt;</code>；<strong>调用者</strong>决定具体类型。它走<strong>静态分发</strong>：编译期对每种实际类型<strong>单态化</strong>出一份专门代码，零运行时开销，代价是可能增大二进制体积。它与具名泛型的唯一实质差别，是类型参数匿名、无法被多个参数共享引用。</li>
-<li><strong>返回位置的 <code>impl Trait</code></strong>（返回值上）叫<strong>不透明返回类型（opaque return type / RPIT）</strong>；<strong>实现者</strong>决定具体类型，调用者看不到，只知道它满足某个 trait。好处是<strong>封装</strong>（可随时换内部实现）和<strong>免写复杂/无法命名的类型名</strong>（如含闭包的迭代器类型）。它仍是静态分发、零开销；硬规则是一次只能返回一种确定的具体类型。</li>
-<li>与 <code>impl Trait</code>/泛型相对的是 <strong><code>dyn Trait</code>（trait 对象）</strong>，走<strong>动态分发</strong>：通过**虚表（vtable）**在运行时查方法地址，有一次间接调用开销，但能把编译期未知或种类繁多的类型统一收纳（如 <code>Vec&lt;Box&lt;dyn Trait&gt;&gt;</code>）。</li>
-</ul>
-<p>下一篇，我们带着这套对“类型选择权“的理解，回到 <code>tokio_process.rs</code>，看 <code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code> 怎么把第五篇的接口约定真正实现出来——届时会碰到 <code>Arc</code>、<code>Mutex</code> 和通道，而有了所有权、借用、<code>impl Trait</code> 打底，它们读起来会顺很多。</p>
+<p>下一篇，我们带着这套理解回到 <code>tokio_process.rs</code>，看 <code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code> 怎么把这份接口约定真正实现出来——届时会碰到 <code>Arc</code>、<code>Mutex</code> 和通道，而有了所有权和借用打底，它们读起来会顺很多。</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="术语表"><a class="header" href="#术语表">术语表</a></h1>
 <p>每篇文章首次引入的术语及对应篇号。</p>
@@ -1438,13 +1282,6 @@ fn print_dyn(value: &amp;dyn Debug) {
 <tr><td>lifetime（生命周期，<code>'a</code>）</td><td>引用的“保质期“，编译期保证引用不比数据活得久；可用 <code>'a</code> 显式标注或被 elision 省略。</td><td>06</td></tr>
 <tr><td>lifetime elision（省略）</td><td>编译器按默认规则自动补全常见生命周期，免手写。</td><td>06</td></tr>
 <tr><td>NLL（非词法生命周期）</td><td>借用在“最后一次使用“处结束，而非作用域末尾；让合法借用更早释放。</td><td>06</td></tr>
-<tr><td><code>impl Trait</code>（输入位置 / 参数位置）</td><td>写在参数类型上的 <code>impl Trait</code>，是泛型的语法糖；由调用者决定具体类型。</td><td>07</td></tr>
-<tr><td>static dispatch（静态分发）</td><td>编译期为每种类型单态化出专门代码、方法调用直接跳转的方式，零运行时开销。</td><td>07</td></tr>
-<tr><td>monomorphization（单态化）</td><td>编译器对每种实际类型各“复印“一份专门代码的过程，是静态分发的实现手段。</td><td>07</td></tr>
-<tr><td>opaque return type（不透明返回类型）/ <code>impl Trait</code>（返回位置）/ RPIT</td><td>返回位置的 <code>impl Trait</code>；由实现者决定具体类型，调用者只见其 trait；仍是静态分发。</td><td>07</td></tr>
-<tr><td>trait object（trait 对象，<code>dyn Trait</code>）</td><td>运行时才确定具体类型的值，能统一收纳多种类型；走动态分发。</td><td>07</td></tr>
-<tr><td>dynamic dispatch（动态分发）</td><td>运行时通过虚表查找方法地址再调用的方式，有一次间接开销。</td><td>07</td></tr>
-<tr><td>vtable（虚表）</td><td>记录某类型各方法地址的表；trait 对象靠它实现动态分发。</td><td>07</td></tr>
 </tbody>
 </table>
 </div>
