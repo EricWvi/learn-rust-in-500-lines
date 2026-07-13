@@ -62,3 +62,10 @@ Terms introduced in each blog post, paired with the post number that first intro
 | lifetime (`'a`) | The "shelf life" of a reference; compile-time guarantee that a reference does not outlive its data; can be annotated explicitly with `'a` or elided. | 06 |
 | lifetime elision | The compiler auto-fills common lifetimes according to default rules, saving you from writing them. | 06 |
 | NLL (Non-Lexical Lifetimes) | Borrows end at the "last use" instead of the end of scope, allowing legitimate borrows to be released earlier. | 06 |
+| `impl Trait` (input position / parameter position) | `impl Trait` in parameter type position, syntactic sugar for generics; the caller decides the concrete type. | 07 |
+| static dispatch | The approach where the compiler monomorphizes dedicated code for each type and method calls are direct jumps; zero runtime overhead. | 07 |
+| monomorphization | The process where the compiler "copies" a dedicated version of code for each concrete type; the implementation mechanism of static dispatch. | 07 |
+| opaque return type / `impl Trait` (return position) / RPIT | `impl Trait` in return position; the implementor decides the concrete type, the caller only sees its trait; still static dispatch. | 07 |
+| trait object (`dyn Trait`) | A value whose concrete type is determined at runtime; can unify multiple types into a single container; uses dynamic dispatch. | 07 |
+| dynamic dispatch | The approach where a method's address is looked up at runtime via a vtable; incurs one level of indirection overhead. | 07 |
+| vtable | A table recording the method addresses for a given type; trait objects use it to achieve dynamic dispatch. | 07 |

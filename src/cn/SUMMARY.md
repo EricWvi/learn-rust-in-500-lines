@@ -8,6 +8,7 @@
 - [Option、PathBuf 与更进一步的借用](./04-option-pathbuf-borrow.md)
 - [trait、关联类型与 Result](./05-trait-associated-type-result.md)
 - [所有权、借用与生命周期](./06-ownership-borrow-lifetime.md)
+- [impl Trait 的两种位置——静态分发与不透明返回类型](./07-impl-trait-static-dispatch-opaque.md)
 
 
 [术语表](./terminology.md)

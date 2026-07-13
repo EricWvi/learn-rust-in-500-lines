@@ -243,5 +243,3 @@ fn spawn(&self, spec: ProcessSpec) -> io::Result<Self::Process>;
 - **借用（borrow）**：`&T` 共享只读（可多个）、`&mut T` 独占可写（只能一个）、`*` 解引用。借用不转移所有权。铁律"共享不可变，可变不共享"是为了让"边读边写"的数据竞争/迭代器失效从根上不可能。借用的结束看**最后一次使用**而非作用域末尾（NLL）。`take_stdin(&mut self)` 借走把手、用 `Option::take` 把管道 move 出来，是借用与转移的精妙结合。
 - **borrow checker** 是编译期执行上述检查的组件；把它当尽责的审稿人，而非敌人——它拦下的多是 use-after-free、悬空指针、数据竞争这类真 bug。
 - **生命周期（lifetime）** 是引用的"保质期"，保证引用不比数据活得久（借书证 vs 图书馆）。`cwd_path(&self) -> &Path` 的返回引用生命周期绑定到 `self`（通常由 elision 省略）；不够时用 `'a` 显式标注，如 `fn f<'a>(s: &'a str) -> &'a str`。`'static` 是活到程序结束的特殊生命周期。
-
-下一篇，我们带着这套理解回到 `tokio_process.rs`，看 `TokioProcessSpawner` 和 `TokioManagedProcess` 怎么把这份接口约定真正实现出来——届时会碰到 `Arc`、`Mutex` 和通道，而有了所有权和借用打底，它们读起来会顺很多。

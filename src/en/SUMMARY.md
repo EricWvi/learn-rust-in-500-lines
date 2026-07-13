@@ -8,6 +8,7 @@
 - [Option, PathBuf, and Deeper Borrowing](./04-option-pathbuf-borrow.md)
 - [trait, Associated Types, and Result](./05-trait-associated-type-result.md)
 - [Ownership, Borrowing, and Lifetimes](./06-ownership-borrow-lifetime.md)
+- [impl Trait in Two Positions — Static Dispatch and Opaque Return Types](./07-impl-trait-static-dispatch-opaque.md)
 
 
 [Terminology](./terminology.md)
