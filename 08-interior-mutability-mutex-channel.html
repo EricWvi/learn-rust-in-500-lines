@@ -1,0 +1,425 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Interior Mutability, Mutex, and Channels - Learn Rust in 500 Lines</title>
+
+
+        <!-- Custom HTML head -->
+        <template id="lang-icon"><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></svg></span></template>
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-e96d0476.css">
+        <link rel="stylesheet" href="css/chrome-d279d366.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme/lang-switcher-607aa6b5.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-fd1d71f7.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-fb4d197a.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Learn Rust in 500 Lines</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/EricWvi/learn-rust-in-500-lines" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="post-08-interior-mutability-mutex-and-channels--how-can-self-modify-data"><a class="header" href="#post-08-interior-mutability-mutex-and-channels--how-can-self-modify-data">Post 08: Interior Mutability, <code>Mutex</code>, and Channels — How Can <code>&amp;self</code> Modify Data?</a></h1>
+<h2 id="1-two-signatures-that-look-impossible"><a class="header" href="#1-two-signatures-that-look-impossible">1. Two Signatures That Look Impossible</a></h2>
+<p>At the end of the previous post, we said we would return to <code>tokio_process.rs</code> to see how <code>TokioProcessSpawner</code> and <code>TokioManagedProcess</code> actually implement the <code>ManagedProcess</code> interface from Post 05. Here is the most intriguing method among them — <code>wait</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn wait(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;ExitStatus&gt;&gt; + Send + '_ {
+    drop(
+        self.stdin
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take(),
+    );
+    // ... then waits for the child process to exit
+}
+<span class="boring">}</span></code></pre>
+<p>Ignore the details for now and focus on two things.</p>
+<p>First, <code>wait</code>’s receiver is <code>&amp;self</code> — a <strong>shared borrow</strong>. In Post 06 we just established the rule “shared (<code>&amp;</code>) means immutable, mutable (<code>&amp;mut</code>) means unshared.” Yet here <code>wait</code>, through <code>&amp;self</code>, calls <code>self.stdin.lock()...take()</code> — it <strong>modifies</strong> <code>self.stdin</code>. How can a <code>&amp;self</code> method modify its own field?</p>
+<p>Second, when we list out the fields of <code>TokioManagedProcess</code>, we find an even stranger detail: it has <strong>no <code>Child</code> field at all</strong>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct TokioManagedProcess {
+    id: Option&lt;u32&gt;,
+    stdin: Mutex&lt;Option&lt;ChildStdin&gt;&gt;,
+    stdout: Option&lt;ChildStdout&gt;,
+    stderr: Option&lt;ChildStderr&gt;,
+    exit_rx: watch::Receiver&lt;Option&lt;ExitState&gt;&gt;,
+    kill_tx: mpsc::UnboundedSender&lt;KillRequest&gt;,
+    drop_tx: Option&lt;oneshot::Sender&lt;()&gt;&gt;,
+}
+<span class="boring">}</span></code></pre>
+<p>Where did the <code>Child</code> (tokio’s process handle) that actually represents the child process go? <code>wait</code> needs to wait for it to exit, <code>kill</code> needs to kill it, yet the handle itself doesn’t own it — how does it manage?</p>
+<p>These two “impossibilities” correspond to two mechanisms in Rust for moving and sharing data: <strong>interior mutability</strong> (solving “how can <code>&amp;self</code> modify”) and <strong>channels</strong> (solving “how to command data when you don’t hold it”). Let’s unpack them one by one.</p>
+<h2 id="2-review-why-ordinary-fields-cannot-be-modified-through-self"><a class="header" href="#2-review-why-ordinary-fields-cannot-be-modified-through-self">2. Review: Why Ordinary Fields Cannot Be Modified Through <code>&amp;self</code></a></h2>
+<p>Before answering “how can <code>&amp;self</code> modify,” let’s confirm “why the ordinary case cannot.” Look at the <code>stdout</code> field — it’s a plain <code>Option&lt;ChildStdout&gt;</code>, no <code>Mutex</code>. Its corresponding accessor method is:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn take_stdout(&amp;mut self) -&gt; Option&lt;Self::Stdout&gt; {
+    self.stdout.take()
+}
+<span class="boring">}</span></code></pre>
+<p>Notice the receiver is <code>&amp;mut self</code> — <strong>mutable borrow</strong>. Precisely because <code>take</code> needs to modify <code>self.stdout</code> (moving the pipe out and leaving <code>None</code> in its place), it must take a mutable borrow for the compiler to approve. All of this is perfectly consistent with the rules from Post 06: to modify, you need <code>&amp;mut</code>.</p>
+<p>Then the question focuses on <code>wait</code>: it also wants to “take stdin, leave <code>None</code>,” doing the same kind of thing as <code>take_stdout</code>, so why is its receiver <code>&amp;self</code> rather than <code>&amp;mut self</code>? The signatures of <code>ManagedProcess::wait</code> and <code>kill</code> are both <code>&amp;self</code>. This is a contract set by the interface designer: operations like waiting and terminating should not require exclusive access to the handle; a caller holding a shared reference should also be able to <code>wait</code>. But once the signature is fixed as <code>&amp;self</code>, the method body cannot use <code>&amp;mut self</code> — yet we need to modify <code>stdin</code>. Rules and requirements collide here.</p>
+<p>The answer lies in the problem itself: the limitation is that “ordinary fields can only be modified through <code>&amp;mut</code>.” Is there a kind of field that <strong>allows you to modify it even with a <code>&amp;</code></strong>? Yes. That is the core of this post — <strong>interior mutability</strong>.</p>
+<h2 id="3-interior-mutability-modifying-things-behind-a-shared-reference"><a class="header" href="#3-interior-mutability-modifying-things-behind-a-shared-reference">3. Interior Mutability: Modifying Things Behind a Shared Reference</a></h2>
+<p><strong>Interior mutability</strong> is an “inverted” design: the type’s <strong>exterior</strong> behaves like an immutable value (you can operate on it with just a <code>&amp;T</code>), but its <strong>interior</strong> secretly provides the ability to mutate. In plain terms, it’s like a <strong>locked safe</strong> — as long as you can “see” the safe (get a <code>&amp;</code>), you can turn the lock and put things inside. Whether you can unlock it depends not on whether you hold <code>&amp;</code> or <code>&amp;mut</code>, but on the safe’s own locking mechanism.</p>
+<p>Why does Rust permit this “exception”? Because these types shift the safety check for mutation from <strong>compile time</strong> to <strong>runtime</strong>. The compiler sees <code>&amp;T</code> and, by the rules, treats it as read-only. But the type internally uses a bit of low-level trickery (the standard library’s <code>UnsafeCell</code>) to bypass this assumption, and at runtime personally guarantees “only one mutator at a time,” thereby taking the safety responsibility onto itself. For the user, what you get is a <strong>safe API</strong> — you don’t need to worry about how it works internally.</p>
+<blockquote>
+<p>Analogy: an ordinary field is like an <strong>open notebook on a desk</strong> — everyone can look (<code>&amp;</code>), but if someone wants to write on it, they must first take exclusive possession (<code>&amp;mut</code>) to avoid two people writing over each other. An interior-mutable type, by contrast, is like a <strong>shared register with a lock</strong> — everyone can come and make entries (just get a <code>&amp;</code> and you can operate), but the register has a lock on it; only one person writes at a time, they just queue up. Rust hands the trouble of “managing the lock” to the type itself.</p>
+</blockquote>
+<p>The standard library provides a whole family of such types, divided into two paths by “single-threaded / multi-threaded”:</p>
+<ul>
+<li><strong>Single-threaded</strong>: <code>Cell&lt;T&gt;</code> (whole-value replacement, simple values), <code>RefCell&lt;T&gt;</code> (runtime borrow checking, gives you a <code>&amp;mut</code>). They are lightweight but <strong>cannot</strong> be shared across threads.</li>
+<li><strong>Multi-threaded</strong>: <code>Mutex&lt;T&gt;</code> (mutual exclusion lock, one at a time), <code>RwLock&lt;T&gt;</code> (read-write lock, many readers or one writer). They come with thread synchronization and can be safely shared across threads / tasks.</li>
+</ul>
+<p>We only need to file away these “Cell” names for now — we’ll cover them in a dedicated post later.</p>
+<p>Our <code>tokio_process.rs</code> runs on tokio’s multi-threaded runtime; <code>wait</code> could be called from any worker thread, so the multi-threaded tier applies here — <code>Mutex</code>. Let’s look at it.</p>
+<h2 id="4-mutext-lock-through-self-then-modify"><a class="header" href="#4-mutext-lock-through-self-then-modify">4. <code>Mutex&lt;T&gt;</code>: Lock Through <code>&amp;self</code>, Then Modify</a></h2>
+<p>The <code>stdin</code> field is <code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code> — the entire <code>Option&lt;ChildStdin&gt;</code> is wrapped inside a mutex. The full steps by which <code>wait</code> modifies it are:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>self.stdin                       // &amp;Mutex&lt;Option&lt;ChildStdin&gt;&gt;
+    .lock()                      // acquire lock: returns Result&lt;MutexGuard, PoisonError&gt;
+    .unwrap_or_else(PoisonError::into_inner)  // extract MutexGuard (including poisoned case)
+    .take()                      // move the pipe out of Option&lt;ChildStdin&gt;, leave None in place; if None, you get None
+<span class="boring">}</span></code></pre>
+<p>Let’s unpack three things step by step.</p>
+<p><strong>First, <code>lock()</code>’s receiver is <code>&amp;self</code> — the mutex itself is an interior-mutable type.</strong> <code>Mutex::lock(&amp;self)</code> can be called with just a shared reference because it manages the lock internally. This is the very foundation that makes “<code>&amp;self</code> can modify data” possible: what is being modified is not an ordinary field, but a <code>Mutex</code>, and <code>Mutex</code> allows operations through <code>&amp;</code>.</p>
+<p><strong>Second, <code>lock()</code> returns a <code>MutexGuard</code> (a guard).</strong> You can think of it as the “key tag” you get after unlocking — as long as the key tag is in your hand, the lock remains exclusively yours; you read and write the data inside through the key tag. <code>MutexGuard</code> implements <code>Deref</code> / <code>DerefMut</code> (automatic dereference, seen in Post 04), so you can directly call <code>Option::take</code> on it, as if you were operating directly on the inner <code>Option&lt;ChildStdin&gt;</code>.</p>
+<p><strong>Third, the moment the guard leaves scope, the lock is automatically released.</strong> This is ownership at work once again (Post 06): when <code>MutexGuard</code> is dropped, its <code>Drop</code> implementation automatically unlocks. So you don’t need to manually write “remember to unlock when done” — use up the guard, it leaves scope, and the lock is returned. The <code>drop(...)</code> wrapping that line in <code>wait</code> exists precisely to <strong>immediately take stdin, immediately drop the guard, immediately return the lock</strong>, with no delay (the pitfall section will explain why you must not delay).</p>
+<p>At this point, the first “impossibility” is resolved: <code>wait</code> can modify <code>self.stdin</code> because <code>stdin</code> is not an ordinary field but a <code>Mutex</code> — interior-mutable types allow you to lock and then modify it while holding <code>&amp;self</code>.</p>
+<h3 id="a-detail-why-only-stdin-uses-mutex-and-not-stdout--stderr"><a class="header" href="#a-detail-why-only-stdin-uses-mutex-and-not-stdout--stderr">A detail: why only <code>stdin</code> uses <code>Mutex</code>, and not <code>stdout</code> / <code>stderr</code>?</a></h3>
+<p>Look back at the field list and you’ll see an asymmetry:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>stdin:  Mutex&lt;Option&lt;ChildStdin&gt;&gt;,   // wrapped in Mutex
+stdout: Option&lt;ChildStdout&gt;,         // ordinary field
+stderr: Option&lt;ChildStderr&gt;,         // ordinary field
+<span class="boring">}</span></code></pre>
+<p>Three pipes — why is stdin special? Because <code>wait</code> (a <code>&amp;self</code> method) needs to <strong>close stdin</strong> — it must take stdin out and drop it, so that child processes driven by stdin (like <code>cat</code>, <code>grep</code>) read EOF, know that input has ended, and exit on their own, rather than hanging forever waiting for input. In contrast, <code>stdout</code> and <code>stderr</code> are <strong>not touched at all</strong> in <code>wait</code>; they are only taken in <code>take_stdout</code> / <code>take_stderr</code>, and those two methods take <code>&amp;mut self</code> — an exclusive borrow, modifying ordinary fields is perfectly natural, no <code>Mutex</code> needed.</p>
+<p>In other words: <strong>only state that needs to be modified under <code>&amp;self</code> requires the <code>Mutex</code> layer of interior mutability; for things only modified under <code>&amp;mut self</code>, ordinary fields suffice.</strong> This criterion is practical — you can apply it directly when writing code.</p>
+<h3 id="poisoning-what-poisonerror-is-about"><a class="header" href="#poisoning-what-poisonerror-is-about">Poisoning: what <code>PoisonError</code> is about</a></h3>
+<p><code>lock()</code> returns a <code>Result</code>, meaning it can fail — but the reason for failure is not “the lock is broken,” but <strong>poisoning</strong>. When a thread panics (crashes) while holding the lock, the lock is marked as “poisoned,” because the data inside may have been mutated halfway through, left in an indeterminate state. Thereafter, anyone else calling <code>lock()</code> gets <code>Err(PoisonError)</code>.</p>
+<p><code>wait</code> uses <code>.unwrap_or_else(PoisonError::into_inner)</code> here — meaning “even if poisoned, extract the guard and use it anyway.” The comment above that line explains the reason: poisoning only means “a previous holder panicked while holding the lock”; the guard itself is still usable. Rather than propagating this error to the caller and dragging the entire call chain into poisoning, it’s better to recover the data inside and continue. This is a pragmatic choice born of trade-offs (and indeed a common pattern for handling <code>std::sync::Mutex</code> poisoning): we care more about “still being able to take stdin” than about “whether the previous lock holder exited gracefully.”</p>
+<blockquote>
+<p>While we’re at it, let’s tie up a loose thread: the <code>impl Future&lt;...&gt; + Send + '_</code> returned by <code>wait</code> — that <code>'_</code> means this future borrows <code>&amp;self</code> (its lifetime is tied to this call); <code>+ Send</code> means it can be moved across threads (<code>Send</code> from Post 05), so it can be tossed onto tokio’s multi-threaded runtime. The meaning of <code>impl Trait</code> in return position was thoroughly covered in Post 07 — the implementor decides the concrete type, the caller only sees its trait.</p>
+</blockquote>
+<h2 id="5-channels-the-handle-doesnt-hold-the-process-it-commands-through-messaging"><a class="header" href="#5-channels-the-handle-doesnt-hold-the-process-it-commands-through-messaging">5. Channels: the Handle Doesn’t Hold the Process, It Commands Through “Messaging”</a></h2>
+<p>The first “impossibility” is resolved. The second remains: <code>TokioManagedProcess</code> has no <code>Child</code> field, so how does it <code>wait</code>, how does it <code>kill</code>?</p>
+<p>The answer: <strong><code>Child</code> is moved into a standalone background task, and the handle and this task communicate via “channels.”</strong> The handle never touches the process directly; instead, it sends commands to the background task and receives receipts back.</p>
+<p>This way of thinking has a name: <strong>share by communicating</strong> — the exact opposite of the instinctive “share a piece of memory among everyone” (communicate by sharing). Rob Pike, one of the Go language authors, famously summarized Go’s channel concurrency model: “Do not communicate by sharing memory; instead, share memory by communicating.” In this file, the handle and the background task pass messages back and forth through channels, rather than jointly holding the same <code>Child</code>.</p>
+<h3 id="the-background-task-the-loop-that-holds-child"><a class="header" href="#the-background-task-the-loop-that-holds-child">The background task: the loop that holds <code>Child</code></a></h3>
+<p>Return to the <code>spawn</code> method (seen in Post 05; this is its implementation). Right before creating the handle, it quietly does one thing:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>handle.spawn(run_process_lifecycle(child, kill_rx, drop_rx, exit_tx));
+<span class="boring">}</span></code></pre>
+<p><code>handle.spawn(...)</code> launches a <strong>background task</strong> on the tokio runtime, letting it run independently. This task receives the <strong>real <code>child</code></strong> (ownership transferred to it), plus three channel endpoints. Its core is a loop that simultaneously watches several things with <code>tokio::select!</code> — whichever happens first gets handled:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// heavily simplified, omitting retries and error handling
+loop {
+    tokio::select! {
+        status = child.wait() =&gt; {            // the child process exited on its own
+            publish_exit(status, &amp;exit_tx);   // send exit status through the channel
+            return;                            // task ends
+        }
+        request = kill_rx.recv() =&gt; {          // received a "kill process" command from the handle
+            handle_kill_request(&amp;mut child, request, ...);
+        }
+        _ = drop_signal =&gt; {                   // received "the handle was dropped" signal
+            let _ = child.start_kill();        // initiate kill
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>tokio::select!</code> (multiplexing) is a very common tool in async Rust: it places several async operations side by side and <strong>runs whichever branch is ready first</strong>, discarding the rest. Here it simultaneously watches “process exit,” “received kill command,” and “received drop signal” — whichever arrives first gets a response. Its full mechanism (including branch cancellation, <code>if</code> guards, etc.) will be covered separately later. For now, just understand it as “a switch that waits for several things at once.”</p>
+<p>Note a subtlety: after receiving the drop signal, the task does not immediately <code>return</code> — instead it first calls <code>start_kill</code>, then <strong>stays in the loop</strong> to wait for <code>child.wait()</code> to actually return. That’s because it must obtain the final exit status and send it to the handle through <code>exit_tx</code>; otherwise the handle’s <code>wait</code> would wait forever without a result. This “send the signal first, then stay to finish up” design is precisely what ensures the handle’s <code>wait</code> can always get a definitive result.</p>
+<h3 id="three-channels-each-responsible-for-one-thing"><a class="header" href="#three-channels-each-responsible-for-one-thing">Three channels, each responsible for one thing</a></h3>
+<p>Three channels are set up between the handle and the task, each using a <strong>different</strong> channel type. This is not arbitrary — each matches a distinct communication pattern:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let (exit_tx, exit_rx) = watch::channel(None);            // ① exit status
+let (kill_tx, kill_rx) = mpsc::unbounded_channel();       // ② kill commands
+let (drop_tx, drop_rx) = oneshot::channel();              // ③ drop signal
+<span class="boring">}</span></code></pre>
+<p>First, let’s decode a naming convention so that this string of <code>exit_tx</code>, <code>exit_rx</code> doesn’t feel dizzying. In Rust channel code, <strong><code>tx</code> stands for transmitter (sending end), <code>rx</code> stands for receiver (receiving end)</strong> — derived from the old serial communication habit of transmitter / receiver. Constructors like <code>watch::channel(...)</code> and <code>oneshot::channel()</code> all return a <code>(tx, rx)</code> tuple: the first half is responsible for sending, the second for receiving. So the names become self-explanatory: <code>exit_tx</code> is the sending end of the “exit status” channel, <code>exit_rx</code> is its receiving end; the <code>exit</code> / <code>kill</code> / <code>drop</code> prefixes simply label which concern each channel handles. To put a message into a channel, you hold <code>tx</code>; to wait for a message, you guard <code>rx</code> — every channel is always a matched pair of sender and receiver.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Channel</th><th>Direction</th><th>Type</th><th>Why this type?</th></tr>
+</thead>
+<tbody>
+<tr><td>① exit status</td><td>task → handle</td><td><code>watch</code></td><td>Everyone wants to “glance at the current state,” and may check at any time; <code>watch</code> lets every receiver instantly see the latest value and get notified on changes</td></tr>
+<tr><td>② kill commands</td><td>handle → task</td><td><code>mpsc</code> (multiple-producer, single-consumer)</td><td>kill may be called several times, from several places; <code>mpsc</code> is a <strong>stream</strong> that can buffer a sequence of requests</td></tr>
+<tr><td>③ drop signal</td><td>handle → task</td><td><code>oneshot</code> (one-shot)</td><td>a handle is only dropped once; <code>oneshot</code> sends one value, used once and discarded — the most fitting</td></tr>
+</tbody>
+</table>
+</div>
+<p>Let’s go through each.</p>
+<p><strong><code>watch</code> (① exit status)</strong> is like an <strong>electronic bulletin board</strong>: it always displays the “current latest” exit status. The handle can check at any time (<code>try_wait</code> takes a non-blocking glance, <code>wait</code>/<code>kill</code> first peek to see if it already exited) and instantly read the value on the board, no waiting needed. When the process exits, the task updates the bulletin board once (<code>exit_tx.send(Some(...))</code>), and everyone watching the board is notified. The implementation of <code>try_wait</code> directly reflects this — it just borrows a glance at the board, returns a result if there is one, returns <code>None</code> if not, never waits:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn try_wait(&amp;self) -&gt; io::Result&lt;Option&lt;ExitStatus&gt;&gt; {
+    match exit_result(&amp;self.exit_rx.borrow()) {   // glance at the bulletin board's current value
+        Some(result) =&gt; result.map(Some),
+        None =&gt; Ok(None),
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>The trickiest part of this snippet is <code>result.map(Some)</code>. <code>.map()</code> is a common method on <code>Result</code> (and <code>Option</code>): you pass it a function, and it applies that function <strong>only to the success value</strong>, passing errors through unchanged — <code>Ok(x).map(f)</code> becomes <code>Ok(f(x))</code>, while <code>Err(e).map(f)</code> stays <code>Err(e)</code>. Here <code>Some</code> is <code>Option</code>’s constructor; Rust allows using constructors as functions (<code>Some</code>’s type is <code>fn(T) -&gt; Option&lt;T&gt;</code>). So <code>result.map(Some)</code> means quite straightforwardly: wrap <code>Ok(ExitStatus)</code> into <code>Ok(Some(ExitStatus))</code>, and if there’s an error, pass it through transparently. This wrapping is precisely what makes the return type match <code>try_wait</code>’s declared <code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code>.</p>
+<p>As for <code>None =&gt; Ok(None)</code>, that’s the other branch: the bulletin board has no value yet (the process hasn’t exited), so return <code>Ok(None)</code> — “no error, just hasn’t exited yet.” Thus these two layers of nesting <code>io::Result&lt;Option&lt;...&gt;&gt;</code> express three states in one go: <code>Ok(Some(...))</code> is “already exited,” <code>Ok(None)</code> is “not yet exited,” and <code>Err(...)</code> is “something went wrong.”</p>
+<p><strong><code>mpsc</code> (② kill commands)</strong> is like a <strong>one-way conveyor belt</strong>: the handle puts kill requests onto it, and the task takes them off one by one. <code>mpsc</code> stands for multiple-producer, single-consumer — meaning the sending end can be <code>.clone()</code>d into multiple copies (multiple “producers” can all put things on the belt), but the receiving end is singular (the task side consumes them sequentially). The handle clones <code>kill_tx</code> into the future returned by the <code>kill</code> method, so “each call to kill puts a request onto the belt,” and the task side’s <code>kill_rx.recv()</code> takes them off one by one to execute. Why not <code>oneshot</code>? Because kill is not a one-shot affair — you might kill, then if it hasn’t died, kill again; a conveyor belt can carry a sequence of requests, a one-shot channel cannot.</p>
+<p><strong><code>oneshot</code> (③ drop signal)</strong> is like a <strong>one-time telegram</strong>: send once, receive once, and after sending the slip is void. The handle’s <code>Drop</code> implementation uses it — when the handle is reclaimed, it sends a telegram to the task:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl Drop for TokioManagedProcess {
+    fn drop(&amp;mut self) {
+        if let Some(drop_tx) = self.drop_tx.take() {
+            let _ = drop_tx.send(());   // send telegram: I'm gone, handle the process as agreed
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>drop_tx</code>’s type is <code>Option&lt;oneshot::Sender&lt;()&gt;&gt;</code> — why the <code>Option</code> wrapper? Because of <code>Option::take</code> learned in Post 06: extract the sender, leave <code>None</code> in place, ensuring that even if the handle’s <code>drop</code> is theoretically called multiple times, the signal is sent only once. This channel is only created when <code>kill_on_drop</code> is enabled (see the <code>if spec.should_kill_on_drop()</code> in <code>spawn</code>); for handles that don’t need to reclaim the process, <code>drop_tx</code> starts as <code>None</code>, and that line <code>take()</code> in <code>Drop</code> extracts <code>None</code> and does nothing — clean and tidy.</p>
+<p>Looking at these three channels together with the <code>Mutex</code> from the previous section, the entire handle design becomes clear: <strong><code>Mutex</code> solves “safely modify local state (stdin) under <code>&amp;self</code>”; channels solve “ferry commands and state to and from the background task.”</strong> One faces inward, the other outward.</p>
+<h2 id="6-what-about-arc-we-mentioned-it-in-the-preview"><a class="header" href="#6-what-about-arc-we-mentioned-it-in-the-preview">6. What About <code>Arc</code>? We Mentioned It in the Preview</a></h2>
+<p>At the end of Post 07, I previewed that this post would encounter <code>Arc</code>, <code>Mutex</code>, and channels. <code>Mutex</code> and channels have all made their appearance — only <code>Arc</code> hasn’t. I should be honest about this: <strong>this code genuinely has no <code>Arc</code>, and that is a deliberate choice worth explaining.</strong></p>
+<p><code>Arc&lt;T&gt;</code> (atomically reference-counted) is Rust’s type for implementing <strong>shared ownership</strong>. In Post 06, we said each piece of data has exactly one owner; <code>Arc</code> is the “legitimate exception” to this rule — it internally maintains an atomic counter; each <code>clone()</code> increments the count by one, and when each clone drops, the count decrements by one; when it reaches zero, the data is truly reclaimed. Several <code>Arc&lt;T&gt;</code> values each hold one reference, meaning they <strong>jointly own</strong> the same piece of data. It commonly appears paired with <code>Mutex</code>: if you want several threads to simultaneously read and write the same piece of shared data, you use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code> — <code>Arc</code> handles shared ownership, <code>Mutex</code> handles mutual exclusion.</p>
+<p>So why does this handle not need <code>Arc</code>? Because the handle <strong>has only one owner to begin with</strong> — whoever calls <code>spawn</code> gets it, it’s never cloned to be shared among multiple tasks. It needs <code>Mutex</code> purely for modifying <code>stdin</code> under <code>&amp;self</code> (interior mutability), not for sharing <code>stdin</code> across threads; single-thread-sense interior mutability and multi-thread sharing are two different things. As for the need of “multiple call sites all want to kill,” the code satisfies it by <strong>cloning the channel’s sending end</strong> (<code>kill_tx.clone()</code>) — every place that wants to send a command gets a copy of the sender, while behind the scenes the same task receives. This is lighter than “wrapping a shared handle in <code>Arc</code>”: cloning a channel sender is far lighter than maintaining a shared-ownership handle.</p>
+<blockquote>
+<p>A one-line rule to remember the boundary: <strong>use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code> when you need “multiple places jointly owning and jointly reading/writing the same piece of data”; when it’s just “inside a single owner, need to modify under <code>&amp;self</code>,” a plain <code>Mutex&lt;T&gt;</code> is enough.</strong> The <code>stdin</code> in this post belongs to the latter, so there is no <code>Arc</code>. When we later encounter “several tasks need to share the same cache, the same connection pool,” <code>Arc</code> will naturally make its entrance.</p>
+</blockquote>
+<h2 id="7-common-pitfalls"><a class="header" href="#7-common-pitfalls">7. Common Pitfalls</a></h2>
+<p><strong>Pitfall 1: forgetting to handle a closed channel.</strong> When one end of a channel is dropped, operations on the other end will fail: if the sender is gone, <code>recv()</code> returns <code>None</code>; if the receiver is gone, <code>send()</code> returns <code>Err</code>. Throughout the code in this post, there are <code>let _ = ...send(...)</code> patterns and <code>match</code> on <code>recv</code> / <code>changed</code> return values — these are carefully handling the “the other side may already be gone” case. If you write channels without checking these return values, you can easily silently lose messages at runtime, or get stuck waiting on something that will never be responded to.</p>
+<p><strong>Pitfall 2: mistakenly thinking <code>&amp;self</code> methods can casually modify fields.</strong> After reading this post, don’t slide to the opposite extreme — thinking interior mutability is “a free pass to modify fields anytime, anywhere.” Ordinary fields must still be modified through <code>&amp;mut self</code>; only fields <strong>explicitly</strong> wrapped in interior-mutable types like <code>Mutex</code> / <code>RefCell</code> / <code>Cell</code> can be modified through <code>&amp;self</code>. Whether to use <code>Mutex</code> is a design decision made on demand (see the criterion in section 4), not the default.</p>
+<h2 id="8-recap"><a class="header" href="#8-recap">8. Recap</a></h2>
+<ul>
+<li><code>ManagedProcess::wait</code> and <code>kill</code>’s receivers are <code>&amp;self</code>, yet <code>wait</code>’s implementation needs to modify <code>stdin</code> — this appears to violate Post 06’s “shared means immutable” rule. The breakthrough is <strong>interior mutability</strong>: certain types allow you to modify their contents while holding <code>&amp;</code>, shifting safety checks from compile time to runtime.</li>
+<li><code>stdin</code> is <code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code>; <code>wait</code> calls <code>self.stdin.lock()</code> to obtain a <code>MutexGuard</code> (guard), then calls <code>.take()</code> on the guard to modify data. <code>Mutex</code> itself is an interior-mutable type; <code>lock(&amp;self)</code> only requires a shared reference — this is the foundation for “<code>&amp;self</code> can modify.” The guard automatically releases the lock when it leaves scope. Only <code>stdin</code> is wrapped in <code>Mutex</code> because it is modified in a <code>&amp;self</code> method; <code>stdout</code> / <code>stderr</code> are only modified in <code>&amp;mut self</code> methods — ordinary fields suffice.</li>
+<li><code>Mutex::lock</code> returns <code>Result</code>; <code>Err</code> indicates <strong>poisoning</strong> — the previous lock holder panicked. <code>.unwrap_or_else(PoisonError::into_inner)</code> chooses to ignore poisoning and extract the guard anyway — a pragmatic trade-off.</li>
+<li><code>TokioManagedProcess</code> has no <code>Child</code> field: the real <code>Child</code> is moved into a background task (<code>handle.spawn(run_process_lifecycle(...))</code>), and the handle communicates with it via <strong>channels</strong> — this is <strong>share by communicating</strong>.</li>
+<li>Three channels, each with its own role: <code>watch</code> (task → handle, sends exit status, like an electronic bulletin board you can glance at anytime) suits <code>try_wait</code> / <code>wait</code> / <code>kill</code> checking status; <code>mpsc</code> (handle → task, kill commands, like a one-way conveyor belt that can carry multiple requests); <code>oneshot</code> (handle → task, drop signal, a one-time telegram, guaranteed single-send via <code>Option::take</code>). The background task uses <code>tokio::select!</code> to simultaneously watch “process exit / kill command / drop signal,” handling whichever arrives first.</li>
+<li>This post has no <code>Arc</code>: the handle has only one owner; it needs <code>Mutex</code> (for interior mutability), not shared ownership. When you genuinely need “multiple tasks to jointly own and read/write the same data,” use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code> — <code>Arc</code> manages shared ownership, <code>Mutex</code> manages mutual exclusion.</li>
+<li>When one end of a channel closes, operations on the other end will fail — always check return values. Ordinary fields still require <code>&amp;mut self</code> to modify; interior mutability is not a free pass to modify fields casually.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="terminology.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="terminology.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="theme/lang-switcher-bc921a64.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-da33a305.js";
+            window.path_to_searchindex_js = "searchindex-fd1d71f7.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-1b1423e7.js"></script>
+        <script src="toc-fb4d197a.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -252,6 +252,14 @@
 <tr><td>trait object (<code>dyn Trait</code>)</td><td>A value whose concrete type is determined at runtime; can unify multiple types into a single container; uses dynamic dispatch.</td><td>07</td></tr>
 <tr><td>dynamic dispatch</td><td>The approach where a method’s address is looked up at runtime via a vtable; incurs one level of indirection overhead.</td><td>07</td></tr>
 <tr><td>vtable</td><td>A table recording the method addresses for a given type; trait objects use it to achieve dynamic dispatch.</td><td>07</td></tr>
+<tr><td>interior mutability</td><td>A type that looks immutable from the outside (you operate on it through <code>&amp;T</code>) but allows mutation internally; moves the safety check from compile time to runtime (e.g. <code>Mutex</code>, <code>RefCell</code>, <code>Cell</code>).</td><td>08</td></tr>
+<tr><td><code>Mutex&lt;T&gt;</code> / <code>MutexGuard</code></td><td>A mutual-exclusion lock; <code>lock()</code> returns a guard <code>MutexGuard</code> through which the inner data can be read/written, and the lock is released when the guard goes out of scope.</td><td>08</td></tr>
+<tr><td>poisoning / <code>PoisonError</code></td><td>If a thread panics while holding a <code>Mutex</code>, the mutex is marked “poisoned” and subsequent <code>lock()</code> calls return <code>Err</code>; <code>PoisonError::into_inner</code> recovers the guard anyway.</td><td>08</td></tr>
+<tr><td>channel</td><td>A one-way pipe for passing messages between tasks/threads; the two ends hold a sender (<code>tx</code>) and a receiver (<code>rx</code>) respectively; embodies “share by communicating”.</td><td>08</td></tr>
+<tr><td><code>watch</code> / <code>mpsc</code> / <code>oneshot</code></td><td>Three tokio channels: <code>watch</code> broadcasts a single latest value (a bulletin board), <code>mpsc</code> is a multi-producer single-consumer stream (a conveyor belt), <code>oneshot</code> carries one value once (a telegram).</td><td>08</td></tr>
+<tr><td><code>tokio::select!</code></td><td>Async multiplexing: lays several async operations side by side and runs whichever branch becomes ready first.</td><td>08</td></tr>
+<tr><td><code>Arc&lt;T&gt;</code> (atomically reference-counted)</td><td>A type providing shared ownership: multiple <code>Arc</code>s jointly own the same data via <code>clone</code>, and the data is freed only when the count hits zero; often paired with <code>Mutex</code> as <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>.</td><td>08</td></tr>
+<tr><td>share by communicating</td><td>Coordinating by passing messages over channels rather than by sharing memory; the counterpart to “communicate by sharing”.</td><td>08</td></tr>
 </tbody>
 </table>
 </div>
@@ -260,7 +268,7 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="08-interior-mutability-mutex-channel.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -271,7 +279,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="08-interior-mutability-mutex-channel.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 

@@ -38,10 +38,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6b150a04.js";
+            window.path_to_searchindex_js = "searchindex-e2516ee2.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-1a0bbb5d.js"></script>
+        <script src="toc-b1775d51.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -1372,6 +1372,192 @@ fn print_dyn(value: &amp;dyn Debug) {
 </ul>
 <p>下一篇，我们带着这套对“类型选择权“的理解，回到 <code>tokio_process.rs</code>，看 <code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code> 怎么把第五篇的接口约定真正实现出来——届时会碰到 <code>Arc</code>、<code>Mutex</code> 和通道，而有了所有权、借用、<code>impl Trait</code> 打底，它们读起来会顺很多。</p>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="第-08-篇内部可变性mutex-与通道self-凭什么能改数据"><a class="header" href="#第-08-篇内部可变性mutex-与通道self-凭什么能改数据">第 08 篇：内部可变性、<code>Mutex</code> 与通道——<code>&amp;self</code> 凭什么能改数据</a></h1>
+<h2 id="一两个看起来都不可能的签名"><a class="header" href="#一两个看起来都不可能的签名">一、两个看起来都不可能的签名</a></h2>
+<p>上一篇结尾我们说，要回到 <code>tokio_process.rs</code>，看 <code>TokioProcessSpawner</code> 和 <code>TokioManagedProcess</code> 怎么把第五篇那套 <code>ManagedProcess</code> 接口真正实现出来。下面就是其中最值得琢磨的一个方法——<code>wait</code>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn wait(&amp;self) -&gt; impl Future&lt;Output = io::Result&lt;ExitStatus&gt;&gt; + Send + '_ {
+    drop(
+        self.stdin
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take(),
+    );
+    // ...随后等待子进程退出
+}
+<span class="boring">}</span></code></pre>
+<p>先别管细节，盯住两件事。</p>
+<p>第一，<code>wait</code> 的接收者是 <code>&amp;self</code>——一个<strong>共享借用</strong>。第六篇我们刚立过规矩“共享（<code>&amp;</code>）就不可变，可变（<code>&amp;mut</code>）就不共享“。可这里 <code>wait</code> 明明通过 <code>&amp;self</code>，调了 <code>self.stdin.lock()...take()</code>——它<strong>改了</strong> <code>self.stdin</code>。一个 <code>&amp;self</code> 方法，怎么能改自己的字段？</p>
+<p>第二，等我们把 <code>TokioManagedProcess</code> 的字段列出来，会发现一个更怪的细节：它<strong>根本没有 <code>Child</code> 字段</strong>：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct TokioManagedProcess {
+    id: Option&lt;u32&gt;,
+    stdin: Mutex&lt;Option&lt;ChildStdin&gt;&gt;,
+    stdout: Option&lt;ChildStdout&gt;,
+    stderr: Option&lt;ChildStderr&gt;,
+    exit_rx: watch::Receiver&lt;Option&lt;ExitState&gt;&gt;,
+    kill_tx: mpsc::UnboundedSender&lt;KillRequest&gt;,
+    drop_tx: Option&lt;oneshot::Sender&lt;()&gt;&gt;,
+}
+<span class="boring">}</span></code></pre>
+<p>那个真正代表子进程的 <code>Child</code>（tokio 的进程句柄）去哪了？<code>wait</code> 要等它退出、<code>kill</code> 要杀它，可把手自己不持有它，它靠什么做到？</p>
+<p>这两个“不可能“，对应 Rust 里两套搬动和共享数据的机制：<strong>内部可变性</strong>（解决“<code>&amp;self</code> 怎么改“）和<strong>通道</strong>（解决“数据不在手里，怎么指挥它“）。我们一个个拆。</p>
+<h2 id="二先回顾普通字段为什么不能通过-self-改"><a class="header" href="#二先回顾普通字段为什么不能通过-self-改">二、先回顾：普通字段为什么不能通过 <code>&amp;self</code> 改</a></h2>
+<p>在回答“<code>&amp;self</code> 怎么能改“之前，先确认“普通情况为什么不能改“。看 <code>stdout</code> 字段——它是普通的 <code>Option&lt;ChildStdout&gt;</code>，没有 <code>Mutex</code>。它对应的取用方法是：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn take_stdout(&amp;mut self) -&gt; Option&lt;Self::Stdout&gt; {
+    self.stdout.take()
+}
+<span class="boring">}</span></code></pre>
+<p>注意接收者是 <code>&amp;mut self</code>——<strong>可变借用</strong>。正因为 <code>take</code> 要改 <code>self.stdout</code>（把里面的管道 move 出来、原地留下 <code>None</code>），它必须拿可变借用，编译器才放行。这一切和第六篇的规矩完全一致：要改，就得 <code>&amp;mut</code>。</p>
+<p>那么问题就聚焦在 <code>wait</code> 身上了：它也是要“取走 stdin、留个 <code>None</code>“，做的事和 <code>take_stdout</code> 同类，为什么它的接收者是 <code>&amp;self</code> 而不是 <code>&amp;mut self</code>？<code>ManagedProcess::wait</code> 的函数签名是 <code>&amp;self</code>，<code>kill</code> 也是 <code>&amp;self</code>。这是接口设计者定下的契约：等待、终止这些操作不该要求独占把手，调用方拿着一个共享引用也该能 <code>wait</code>。可一旦签名定成 <code>&amp;self</code>，方法体里就不能用 <code>&amp;mut self</code> 了——而我们偏偏需要改 <code>stdin</code>。规则和需求，在这里冲突了。</p>
+<p>解铃还须系铃人：问题出在“普通字段只能通过 <code>&amp;mut</code> 改“这条限制上。那有没有一种字段，<strong>允许你拿着 <code>&amp;</code> 也能改它</strong>？有。它就是这一篇的核心——<strong>内部可变性</strong>。</p>
+<h2 id="三内部可变性在共享引用背后改东西"><a class="header" href="#三内部可变性在共享引用背后改东西">三、内部可变性：在共享引用背后改东西</a></h2>
+<p><strong>内部可变性（interior mutability）<strong>是一种“反着来“的设计：类型的</strong>外部</strong>表现得像个不可变值（拿到 <code>&amp;T</code> 就能操作），但它的<strong>内部</strong>偷偷提供了修改的能力。说得通俗点，它像一个上了锁的保险柜——你只要能“看见“这个柜子（拿到 <code>&amp;</code>），就能去拧锁、往里放东西；能不能拧开，不看你拿的是 <code>&amp;</code> 还是 <code>&amp;mut</code>，而看柜子自己的锁机制。</p>
+<p>为什么 Rust 能允许这种“破例“？因为这类类型把“修改时的安全性检查“从<strong>编译期</strong>挪到了<strong>运行时</strong>。编译器看到的是 <code>&amp;T</code>，按规矩它确实只读；但类型内部用了一点底层技巧（标准库的 <code>UnsafeCell</code>）绕过了这个假设，并在运行时亲自保证“同时只有一个修改者“，从而把安全责任揽到自己身上。对使用者来说，你拿到的就是一个<strong>安全的 API</strong>，不用操心它内部怎么做到的。</p>
+<blockquote>
+<p>类比：普通字段像一本<strong>摊在桌上的笔记本</strong>——大家都能看（<code>&amp;</code>），但谁要往上写，必须先把本子独占过来（<code>&amp;mut</code>），免得两个人同时写串行。而内部可变类型像一本<strong>带锁的共享登记簿</strong>——大家都能过来登记（只要拿到 <code>&amp;</code> 就能操作），但簿子上挂着一把锁，一次只让一个人动笔，排队来就行。Rust 把“管锁“这件麻烦事交给了类型自己。</p>
+</blockquote>
+<p>标准库给了一整套这样的类型，按“单线程 / 多线程“分两路：</p>
+<ul>
+<li><strong>单线程</strong>：<code>Cell&lt;T&gt;</code>（整体替换，简单值）、<code>RefCell&lt;T&gt;</code>（运行时借用检查，能拿到 <code>&amp;mut</code>）。它们轻量，但<strong>不能</strong>跨线程共享。</li>
+<li><strong>多线程</strong>：<code>Mutex&lt;T&gt;</code>（互斥锁，一次一个）、<code>RwLock&lt;T&gt;</code>（读写锁，多读一写）。它们自带线程同步，能在多线程/多任务间安全共享。</li>
+</ul>
+<p>这些 “Cell” 现在只需要留个印象，我们留到以后专门讲解。</p>
+<p>我们的 <code>tokio_process.rs</code> 跑在 tokio 的多线程运行时上，<code>wait</code> 可能在任意一个工作线程上被调用，所以这里用的是多线程那一档——<code>Mutex</code>。下面就看它。</p>
+<h2 id="四mutext拿-self-锁一锁就能改"><a class="header" href="#四mutext拿-self-锁一锁就能改">四、<code>Mutex&lt;T&gt;</code>：拿 <code>&amp;self</code> 锁一锁，就能改</a></h2>
+<p><code>stdin</code> 字段是 <code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code>——把 <code>Option&lt;ChildStdin&gt;</code> 整个装进了一把互斥锁里。<code>wait</code> 改它的完整步骤是：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>self.stdin                       // &amp;Mutex&lt;Option&lt;ChildStdin&gt;&gt;
+    .lock()                      // 拿锁：返回 Result&lt;MutexGuard, PoisonError&gt;
+    .unwrap_or_else(PoisonError::into_inner)  // 取出 MutexGuard（含中毒情况）
+    .take()                      // 把 Option&lt;ChildStdin&gt; 里的管道 move 出来，原地留下 None，如果是 None，拿到的也是 None
+<span class="boring">}</span></code></pre>
+<p>逐步看清三件事。</p>
+<p><strong>第一，<code>lock()</code> 的接收者是 <code>&amp;self</code>——这把锁本身就是内部可变类型。</strong> <code>Mutex::lock(&amp;self)</code> 只要一个共享引用就能调，因为它内部自己管锁。这正是“<code>&amp;self</code> 改数据“得以成立的根基：被改的不是普通字段，而是 <code>Mutex</code>，而 <code>Mutex</code> 允许通过 <code>&amp;</code> 操作。</p>
+<p><strong>第二，<code>lock()</code> 返回一个 <code>MutexGuard</code>（守卫）。</strong> 你可以把它想成“开锁后到手的那把钥匙牌“——只要钥匙牌在手上，锁就一直为你独占；你通过钥匙牌去读写里面的数据。<code>MutexGuard</code> 实现了 <code>Deref</code> / <code>DerefMut</code>（自动解引用，第四篇见过），所以你能在它上面直接调 <code>Option::take</code>，就像是在直接操作里面的 <code>Option&lt;ChildStdin&gt;</code>。</p>
+<p><strong>第三，守卫一旦离开作用域，锁自动释放。</strong> 这又是一次所有权机制在干活（第六篇）：<code>MutexGuard</code> 被 drop 时，它的 <code>Drop</code> 实现会自动解锁。所以你不必手写“用完记得 unlock“——把守卫用完、它一离开作用域，锁就还回去了。把 <code>wait</code> 里那行放进 <code>drop(...)</code>，正是为了<strong>立刻拿走 stdin、立刻 drop 掉守卫、立刻还锁</strong>，绝不拖延（这一点到第六节“常见的坑“里会专门讲为什么不能拖）。</p>
+<p>到这里，第一个“不可能“就破解了：<code>wait</code> 能改 <code>self.stdin</code>，是因为 <code>stdin</code> 不是普通字段，而是 <code>Mutex</code>——内部可变类型允许你拿着 <code>&amp;self</code> 去锁它、再改它。</p>
+<h3 id="一个细节为什么只有-stdin-用-mutexstdout--stderr-不用"><a class="header" href="#一个细节为什么只有-stdin-用-mutexstdout--stderr-不用">一个细节：为什么只有 <code>stdin</code> 用 <code>Mutex</code>，<code>stdout</code> / <code>stderr</code> 不用？</a></h3>
+<p>回头看字段表，会发现一个不对称：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>stdin:  Mutex&lt;Option&lt;ChildStdin&gt;&gt;,   // 套了 Mutex
+stdout: Option&lt;ChildStdout&gt;,        // 普通字段
+stderr: Option&lt;ChildStderr&gt;,        // 普通字段
+<span class="boring">}</span></code></pre>
+<p>三根管道，为什么偏偏 stdin 特殊？因为 <code>wait</code>（一个 <code>&amp;self</code> 方法）需要<strong>关闭 stdin</strong>——它要把 stdin 取走并 drop 掉，好让靠 stdin 驱动的子进程（<code>cat</code>、<code>grep</code> 这类）读到 EOF、知道输入结束、自行退出，而不是傻等输入卡死。而 <code>stdout</code>、<code>stderr</code> 在 <code>wait</code> 里<strong>完全不被碰</strong>，它们只在 <code>take_stdout</code> / <code>take_stderr</code> 里被取用，而那两个方法是 <code>&amp;mut self</code>——独占借用，改普通字段天经地义，用不着 <code>Mutex</code>。</p>
+<p>换句话说：<strong>凡是需要在 <code>&amp;self</code> 下被修改的状态，才需要 <code>Mutex</code> 这层内部可变性；只在 <code>&amp;mut self</code> 下修改的，普通字段就够了。</strong> 这条判据很实用，写代码时可以直接套用。</p>
+<h3 id="中毒poisonerror-是怎么回事"><a class="header" href="#中毒poisonerror-是怎么回事">中毒：<code>PoisonError</code> 是怎么回事</a></h3>
+<p><code>lock()</code> 返回的是 <code>Result</code>，意味着它可能失败——但失败的原因不是“锁坏了“，而是<strong>中毒（poisoning）</strong>。当一个线程正持有锁时突然 panic（崩溃退出），锁就会被标记成“中毒“状态，因为里面的数据可能正被改到一半，处于不确定的状态。此后别人再 <code>lock()</code>，拿到的就是 <code>Err(PoisonError)</code>。</p>
+<p><code>wait</code> 这里用的是 <code>.unwrap_or_else(PoisonError::into_inner)</code>——意思是“即使中毒了，也照样把守卫取出来用“。代码上方那句注释解释了原因：中毒只代表“之前某个持有者在持锁时崩了“，守卫本身仍是可用的，与其把这个错误抛给调用方、让整条调用链跟着中毒，不如恢复出里面的数据继续。这是一个经过权衡的务实选择（也确实是处理 <code>std::sync::Mutex</code> 中毒的常见写法）：我们更在意“能继续取到 stdin“，而不是纠结“上一个持锁者是不是体面地退出的“。</p>
+<blockquote>
+<p>顺带把之前埋的线接上：<code>wait</code> 返回的 <code>impl Future&lt;...&gt; + Send + '_</code>，那个 <code>'_</code> 是说这个 future 借用了 <code>&amp;self</code>（生命周期绑定到本次调用），<code>+ Send</code> 是说它能跨线程移动（第五篇的 <code>Send</code>），以便丢到 tokio 多线程运行时上去跑。<code>impl Trait</code> 在返回位置的含义，第七篇已经讲透——实现者决定具体类型，调用者只见其 trait。</p>
+</blockquote>
+<h2 id="五通道把手不持有进程靠传话来指挥"><a class="header" href="#五通道把手不持有进程靠传话来指挥">五、通道：把手不持有进程，靠“传话“来指挥</a></h2>
+<p>第一个“不可能“解决了。第二个还在：<code>TokioManagedProcess</code> 没有 <code>Child</code> 字段，那它怎么 <code>wait</code>、怎么 <code>kill</code>？</p>
+<p>答案是：<strong><code>Child</code> 被搬进了一个独立的后台任务里，把手和这个任务之间靠“通道“互相传话。</strong> 把手不直接碰进程，而是给后台任务发指令、收回执。</p>
+<p>这种思路有个名字，叫 <strong>share by communicating（靠通信来共享）</strong>——和直觉里的“大家共享同一块内存“（communicate by sharing）正好相反。Go 语言作者之一的 Rob Pike 总结 Go 的 channel 并发模型时说道：“Do not communicate by sharing memory; instead, share memory by communicating.”（不要靠共享内存来通信；相反，要靠通信来共享内存）。在这个文件里，把手和后台任务就是用通道把消息传来传去，而不是共同持有同一个 <code>Child</code>。</p>
+<h3 id="后台任务抱着-child-的那个循环"><a class="header" href="#后台任务抱着-child-的那个循环">后台任务：抱着 <code>Child</code> 的那个循环</a></h3>
+<p>回看 <code>spawn</code> 方法（第五篇见过 <code>spawn</code>，这里是它的实现），它在创建完把手之前，悄悄做了一件事：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>handle.spawn(run_process_lifecycle(child, kill_rx, drop_rx, exit_tx));
+<span class="boring">}</span></code></pre>
+<p><code>handle.spawn(...)</code> 在 tokio 运行时上启动一个<strong>后台任务（task）</strong>，让它独立运行。这个任务拿到了<strong>真正的 <code>child</code></strong>（所有权转移给它了），外加三个通道的端口。它的核心是一个循环，用 <code>tokio::select!</code> 同时盯着好几件事——哪件先发生，就处理哪件：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// 极度简化，省去了重试与错误处理
+loop {
+    tokio::select! {
+        status = child.wait() =&gt; {            // 子进程自己退出了
+            publish_exit(status, &amp;exit_tx);   // 把退出状态通过通道发出去
+            return;                            // 任务结束
+        }
+        request = kill_rx.recv() =&gt; {          // 收到一把手发来的"杀进程"指令
+            handle_kill_request(&amp;mut child, request, ...);
+        }
+        _ = drop_signal =&gt; {                   // 收到"把手被 drop 了"的信号
+            let _ = child.start_kill();        // 发起 kill
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>tokio::select!</code>（多路复用）是异步 Rust 里很常用的工具：它把好几个异步操作并排放着，<strong>谁先就绪就跑谁的分支</strong>，其余的丢掉。这里它同时盯着“进程退出“，“收到 kill 指令”，“收到 drop 信号“三件事，谁先来就响应谁。它的完整机制（包括分支取消、<code>if</code> 守卫等）以后单独讲，这里你只要把它理解成“同时等好几件事的开关“就够了。</p>
+<p>注意一个精妙之处：收到 drop 信号后，任务并没有立刻 <code>return</code>，而是先 <code>start_kill</code>、然后<strong>继续留在循环里</strong>等 <code>child.wait()</code> 真正返回——因为它得拿到最终退出状态，通过 <code>exit_tx</code> 发给把手，否则把手的 <code>wait</code> 会一直等不到结果。这种“先发信号、再留守到收尾“的设计，正是为了让把手的 <code>wait</code> 永远能等到一个确定的结果。</p>
+<h3 id="三种通道各管一件事"><a class="header" href="#三种通道各管一件事">三种通道，各管一件事</a></h3>
+<p>把手和任务之间一共架了三条通道，每条都用了一个<strong>不同的</strong>通道类型。这不是随便选的，而是各自匹配了不同的通信模式：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let (exit_tx, exit_rx) = watch::channel(None);            // ① 退出状态
+let (kill_tx, kill_rx) = mpsc::unbounded_channel();       // ② kill 指令
+let (drop_tx, drop_rx) = oneshot::channel();              // ③ drop 信号
+<span class="boring">}</span></code></pre>
+<p>先解开一个命名约定，免得这一串 <code>exit_tx</code>、<code>exit_rx</code> 看着眼晕。Rust 通道的代码里，<strong><code>tx</code> 是 transmitter（发送端）、<code>rx</code> 是 receiver（接收端）的缩写</strong>——源自串口通信里 transmitter / receiver 的老习惯。<code>watch::channel(...)</code>、<code>oneshot::channel()</code> 这些构造函数都会返回一个 <code>(tx, rx)</code> 元组：前半截负责发、后半截负责收。于是名字就一目了然了：<code>exit_tx</code> 是“退出状态通道“的发送端，<code>exit_rx</code> 是它的接收端；前面的 <code>exit</code> / <code>kill</code> / <code>drop</code> 前缀，只是标明这条通道分管哪件事。你要往通道里放消息，就握着 <code>tx</code>；要等消息，就守着 <code>rx</code>——一条通道，永远是一对配好的发、收两端。</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>通道</th><th>方向</th><th>类型</th><th>为什么是它</th></tr>
+</thead>
+<tbody>
+<tr><td>① 退出状态</td><td>任务 → 把手</td><td><code>watch</code></td><td>大家都想“瞄一眼当前状态“，且随时可能查；<code>watch</code> 让每个接收者立刻看到最新值，变化时再通知</td></tr>
+<tr><td>② kill 指令</td><td>把手 → 任务</td><td><code>mpsc</code>（多生产者单消费者）</td><td>kill 可能被调好几次、从好几处发起；<code>mpsc</code> 是一条<strong>流</strong>，能缓冲一连串请求</td></tr>
+<tr><td>③ drop 信号</td><td>把手 → 任务</td><td><code>oneshot</code>（一次性）</td><td>一个把手只会被 drop 一次；<code>oneshot</code> 发一个值、用一次即弃，最贴切</td></tr>
+</tbody>
+</table>
+</div>
+<p>我们逐条来看。</p>
+<p><strong><code>watch</code>（① 退出状态）</strong> 像一块<strong>电子公告牌</strong>：上面始终显示“当前最新“的退出状态。把手任何时候想查（<code>try_wait</code> 不阻塞地瞄一眼、<code>wait</code>/<code>kill</code> 先看一眼是不是已经退出了），都能立刻读到牌上的值，不必等。任务在进程退出时把公告牌更新一次（<code>exit_tx.send(Some(...))</code>），所有盯着这块牌的人就被通知到。<code>try_wait</code> 的实现就直白地体现了这一点——它只是借了公告牌看一眼，有结果就返回、没有就返回 <code>None</code>，绝不等待：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>fn try_wait(&amp;self) -&gt; io::Result&lt;Option&lt;ExitStatus&gt;&gt; {
+    match exit_result(&amp;self.exit_rx.borrow()) {   // 看一眼公告牌当前值
+        Some(result) =&gt; result.map(Some),
+        None =&gt; Ok(None),
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>这段里最绕的是 <code>result.map(Some)</code>，<code>.map()</code> 是 <code>Result</code>（和 <code>Option</code>）上的一个常用方法：传给它一个函数，它<strong>只对成功值</strong>套用这个函数，错误则原样放过——<code>Ok(x).map(f)</code> 变成 <code>Ok(f(x))</code>，而 <code>Err(e).map(f)</code> 还是 <code>Err(e)</code>。这里的 <code>Some</code> 是 <code>Option</code> 的构造器，Rust 允许把这种构造器当函数来用（<code>Some</code> 的类型就是 <code>fn(T) -&gt; Option&lt;T&gt;</code>）。于是 <code>result.map(Some)</code> 的意思就很直白了：把 <code>Ok(ExitStatus)</code> 包成 <code>Ok(Some(ExitStatus))</code>，出错时错误原样透传。这层包装，正是为了让返回类型对上 <code>try_wait</code> 声明的 <code>io::Result&lt;Option&lt;ExitStatus&gt;&gt;</code>。</p>
+<p>至于 <code>None =&gt; Ok(None)</code>，那是另一头：公告牌上还没值（进程没退出），返回 <code>Ok(None)</code>——“没出错，只是还没退出”。于是这层两层嵌套 <code>io::Result&lt;Option&lt;...&gt;&gt;</code> 一口气表达了三种状态：<code>Ok(Some(...))</code> 是已退出、<code>Ok(None)</code> 是还没退、<code>Err(...)</code> 是出错了。</p>
+<p><strong><code>mpsc</code>（② kill 指令）</strong> 像一条<strong>单向传送带</strong>：把手这头往上传 kill 请求，任务那头一个个接。<code>mpsc</code> 是 multiple-producer, single-consumer（多生产者、单消费者）的缩写——意思是发送端可以 <code>.clone()</code> 出好几份（多个“生产者“都能往上传），但接收端只有一个（任务这边依次消费）。把手把 <code>kill_tx</code> 克隆一份塞进 <code>kill</code> 方法返回的 future 里，于是“调一次 kill 就往传送带上放一个请求“，任务那头 <code>kill_rx.recv()</code> 一个个取出来执行。为什么不用 <code>oneshot</code>？因为 kill 不是一次性的事——你可能先 kill、没死透再 kill，传送带能承载一串请求，一次性通道做不到。</p>
+<p><strong><code>oneshot</code>（③ drop 信号）</strong> 像一张<strong>一次性电报</strong>：发一次、收一次，发完这张就作废。把手的 <code>Drop</code> 实现就是用它——把手被回收时，往任务那边拍一封电报：</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>impl Drop for TokioManagedProcess {
+    fn drop(&amp;mut self) {
+        if let Some(drop_tx) = self.drop_tx.take() {
+            let _ = drop_tx.send(());   // 拍电报：我没了，按约定处理进程
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>drop_tx</code> 类型是 <code>Option&lt;oneshot::Sender&lt;()&gt;&gt;</code>——为什么套一层 <code>Option</code>？因为第六篇学过的 <code>Option::take</code>：取出发送端、原地留 <code>None</code>，保证一个把手即便 <code>drop</code> 被理论上调多次，也只发一次信号。这条通道只在 <code>kill_on_drop</code> 开启时才创建（看 <code>spawn</code> 里那个 <code>if spec.should_kill_on_drop()</code>），那些不需要回收进程的把手，<code>drop_tx</code> 一开始就是 <code>None</code>，<code>Drop</code> 里那行 <code>take()</code> 取出 <code>None</code>、什么都不做，干净利落。</p>
+<p>把这三条通道和上一节的 <code>Mutex</code> 合起来看，整个把手的设计就通透了：<strong><code>Mutex</code> 解决“在 <code>&amp;self</code> 下安全地改局部状态（stdin）“，通道解决“和后台任务之间搬指令和状态”。</strong> 一个对内，一个对外。</p>
+<h2 id="六那-arc-呢预告里提过它"><a class="header" href="#六那-arc-呢预告里提过它">六、那 <code>Arc</code> 呢？预告里提过它</a></h2>
+<p>第七篇结尾我预告说这一篇会碰到 <code>Arc</code>、<code>Mutex</code> 和通道。<code>Mutex</code> 和通道都登场了，唯独 <code>Arc</code> 没出现——我得如实说明：<strong>这份代码里确实没有 <code>Arc</code>，而且这是个有意为之、值得讲清楚的选择。</strong></p>
+<p><code>Arc&lt;T&gt;</code>（atomically reference-counted，原子引用计数）是 Rust 里实现<strong>共享所有权</strong>的类型。第六篇我们说每份数据只有一个所有者；<code>Arc</code> 是这条规则的“合法例外“——它内部维护一个原子计数器，<code>clone()</code> 一次计数加一，每个 <code>clone</code> Drop 时计数减一，减到零才真正回收数据。好几个 <code>Arc&lt;T&gt;</code> 各拿一个引用，就等于<strong>共同拥有</strong>同一份数据。它通常和 <code>Mutex</code> 成对出现：你想让好几个线程同时读写同一块共享数据，就用 <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>——<code>Arc</code> 负责共享所有权，<code>Mutex</code> 负责互斥访问。</p>
+<p>那为什么这个把手用不上 <code>Arc</code>？因为把手<strong>本来就只有一个所有者</strong>——谁 <code>spawn</code> 出来谁拿着，没有被克隆到多个任务里去共享。它需要 <code>Mutex</code>，纯粹是为了在 <code>&amp;self</code> 下改 stdin（内部可变性），不是为了在多线程间共享 stdin；单线程意义上的内部可变性，和多线程共享，是两回事。至于“多个调用点都想 kill“这种需求，代码是用<strong>克隆通道的发送端</strong>（<code>kill_tx.clone()</code>）来满足的——每个想发指令的地方拿一份发送端副本，背后还是同一个任务在收。这比“<code>Arc</code> 包一个共享把手“更轻：克隆一个通道发送端，远比维护一份共享所有权轻量。</p>
+<blockquote>
+<p>一句话记住这条分界：<strong>需要“多个地方共同拥有、共同读写同一块数据“时才上 <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>；只是“一个所有者内部、要在 <code>&amp;self</code> 下改自己“时，一个 <code>Mutex&lt;T&gt;</code> 就够。</strong> 本篇的 <code>stdin</code> 属于后者，所以没有 <code>Arc</code>。等以后碰到“好几个任务要共享同一个缓存、同一个连接池“时，<code>Arc</code> 自然就会登场。</p>
+</blockquote>
+<h2 id="七常见的坑"><a class="header" href="#七常见的坑">七、常见的坑</a></h2>
+<p><strong>坑一：忘了处理通道关闭。</strong> 通道的某一端被 drop 后，另一端再操作就会失败：发送端没了，<code>recv()</code> 返回 <code>None</code>；接收端没了，<code>send()</code> 返回 <code>Err</code>。本篇代码里到处是 <code>let _ = ...send(...)</code>、以及对 <code>recv</code> / <code>changed</code> 返回值的 <code>match</code>，就是在认真处理“对面可能已经走了“的情况。如果你写了通道却不检查这些返回值，很可能在运行时悄悄丢失消息、或卡在一个永远不会有人响应的等待上。</p>
+<p><strong>坑二：误以为 <code>&amp;self</code> 方法可以随便改字段。</strong> 看完本篇，别滑向另一个极端——以为内部可变性是“随时随地改字段的通行证“。普通字段仍然必须靠 <code>&amp;mut self</code> 改；只有<strong>显式</strong>包在 <code>Mutex</code> / <code>RefCell</code> / <code>Cell</code> 这类内部可变类型里的字段，才能通过 <code>&amp;self</code> 改。是否上 <code>Mutex</code>，是个要按需做的设计决定（见第四节那条判据），不是默认。</p>
+<h2 id="八小结-2"><a class="header" href="#八小结-2">八、小结</a></h2>
+<ul>
+<li><code>ManagedProcess::wait</code> 和 <code>kill</code> 的接收者是 <code>&amp;self</code>，可 <code>wait</code> 的实现需要改 <code>stdin</code>——这看似违背第六篇“共享即不可变“的规矩。突破口是<strong>内部可变性（interior mutability）</strong>：某些类型允许你拿着 <code>&amp;</code> 去改其内容，把安全性检查从编译期挪到运行时。</li>
+<li><code>stdin</code> 是 <code>Mutex&lt;Option&lt;ChildStdin&gt;&gt;</code>，<code>wait</code> 通过 <code>self.stdin.lock()</code> 拿到一个 <code>MutexGuard</code>（守卫），在守卫上 <code>.take()</code> 改数据。<code>Mutex</code> 自身是内部可变类型，<code>lock(&amp;self)</code> 只要共享引用，这是“<code>&amp;self</code> 能改“的根基；守卫离开作用域自动还锁。只有 <code>stdin</code> 套了 <code>Mutex</code>，因为它是在 <code>&amp;self</code> 方法里被改的；<code>stdout</code> / <code>stderr</code> 只在 <code>&amp;mut self</code> 方法里改，普通字段足矣。</li>
+<li><code>Mutex::lock</code> 返回 <code>Result</code>，<code>Err</code> 表示<strong>中毒（poisoning）</strong>——上次持锁者 panic 了。<code>.unwrap_or_else(PoisonError::into_inner)</code> 选择无视中毒、照常取出守卫，是务实的取舍。</li>
+<li><code>TokioManagedProcess</code> 没有 <code>Child</code> 字段：真正的 <code>Child</code> 被搬进了一个后台任务（<code>handle.spawn(run_process_lifecycle(...))</code>），把手和它靠<strong>通道</strong>传话，这就是 <strong>share by communicating（靠通信来共享）</strong>。</li>
+<li>三种通道各司其职：<code>watch</code>（任务→把手，发退出状态，像电子公告牌，可随时瞄一眼）适合 <code>try_wait</code> / <code>wait</code> / <code>kill</code> 查状态；<code>mpsc</code>（把手→任务，kill 指令，像单向传送带，可承载多次请求）；<code>oneshot</code>（把手→任务，drop 信号，一次性电报，靠 <code>Option::take</code> 保证只发一次）。后台任务用 <code>tokio::select!</code> 同时盯着“进程退出 / kill 指令 / drop 信号“，先到先处理。</li>
+<li>本篇没有 <code>Arc</code>：把手只有一个所有者，需要的是 <code>Mutex</code>（内部可变性）而非共享所有权。当真要“多个任务共同拥有并读写同一块数据“时，才用 <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>——<code>Arc</code> 管共享所有权，<code>Mutex</code> 管互斥访问。</li>
+<li>通道一端关闭后另一端操作会失败，务必检查返回值；普通字段仍须 <code>&amp;mut self</code> 改，内部可变性不是随意改字段的通行证。</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="术语表"><a class="header" href="#术语表">术语表</a></h1>
 <p>每篇文章首次引入的术语及对应篇号。</p>
 <div class="table-wrapper">
@@ -1445,6 +1631,14 @@ fn print_dyn(value: &amp;dyn Debug) {
 <tr><td>trait object（trait 对象，<code>dyn Trait</code>）</td><td>运行时才确定具体类型的值，能统一收纳多种类型；走动态分发。</td><td>07</td></tr>
 <tr><td>dynamic dispatch（动态分发）</td><td>运行时通过虚表查找方法地址再调用的方式，有一次间接开销。</td><td>07</td></tr>
 <tr><td>vtable（虚表）</td><td>记录某类型各方法地址的表；trait 对象靠它实现动态分发。</td><td>07</td></tr>
+<tr><td>interior mutability（内部可变性）</td><td>类型外部表现得像不可变（拿到 <code>&amp;T</code> 即可操作），内部却允许修改；把安全性检查从编译期挪到运行时（如 <code>Mutex</code>、<code>RefCell</code>、<code>Cell</code>）。</td><td>08</td></tr>
+<tr><td><code>Mutex&lt;T&gt;</code> / <code>MutexGuard</code></td><td>互斥锁；<code>lock()</code> 返回守卫 <code>MutexGuard</code>，在守卫上可读写内部数据，守卫离开作用域自动还锁。</td><td>08</td></tr>
+<tr><td>poisoning（中毒）/ <code>PoisonError</code></td><td>持锁期间线程 panic 会让 <code>Mutex</code> 标记为“中毒“，此后 <code>lock()</code> 返回 <code>Err</code>；可用 <code>PoisonError::into_inner</code> 取出守卫。</td><td>08</td></tr>
+<tr><td>channel（通道）</td><td>在任务/线程之间单向传递消息的管道，两端分别持有发送端与接收端；体现“靠通信来共享“。</td><td>08</td></tr>
+<tr><td><code>watch</code> / <code>mpsc</code> / <code>oneshot</code></td><td>tokio 三种通道：<code>watch</code> 广播单一可变最新值（公告牌）、<code>mpsc</code> 多生产者单消费者的流（传送带）、<code>oneshot</code> 一次性单值（电报）。</td><td>08</td></tr>
+<tr><td><code>tokio::select!</code></td><td>异步多路复用：把多个异步操作并排放着，谁先就绪就跑谁的分支。</td><td>08</td></tr>
+<tr><td><code>Arc&lt;T&gt;</code>（原子引用计数）</td><td>实现共享所有权的类型：多个 <code>Arc</code> 经 <code>clone</code> 共同拥有同一份数据，计数归零才回收；常与 <code>Mutex</code> 成对写作 <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>。</td><td>08</td></tr>
+<tr><td>share by communicating（靠通信来共享）</td><td>用通道传递消息来协调，而非共享同一块内存；与“communicate by sharing“相对。</td><td>08</td></tr>
 </tbody>
 </table>
 </div>

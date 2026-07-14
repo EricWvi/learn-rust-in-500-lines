@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6b150a04.js";
+            window.path_to_searchindex_js = "searchindex-e2516ee2.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-1a0bbb5d.js"></script>
+        <script src="toc-b1775d51.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -252,6 +252,14 @@
 <tr><td>trait object（trait 对象，<code>dyn Trait</code>）</td><td>运行时才确定具体类型的值，能统一收纳多种类型；走动态分发。</td><td>07</td></tr>
 <tr><td>dynamic dispatch（动态分发）</td><td>运行时通过虚表查找方法地址再调用的方式，有一次间接开销。</td><td>07</td></tr>
 <tr><td>vtable（虚表）</td><td>记录某类型各方法地址的表；trait 对象靠它实现动态分发。</td><td>07</td></tr>
+<tr><td>interior mutability（内部可变性）</td><td>类型外部表现得像不可变（拿到 <code>&amp;T</code> 即可操作），内部却允许修改；把安全性检查从编译期挪到运行时（如 <code>Mutex</code>、<code>RefCell</code>、<code>Cell</code>）。</td><td>08</td></tr>
+<tr><td><code>Mutex&lt;T&gt;</code> / <code>MutexGuard</code></td><td>互斥锁；<code>lock()</code> 返回守卫 <code>MutexGuard</code>，在守卫上可读写内部数据，守卫离开作用域自动还锁。</td><td>08</td></tr>
+<tr><td>poisoning（中毒）/ <code>PoisonError</code></td><td>持锁期间线程 panic 会让 <code>Mutex</code> 标记为“中毒“，此后 <code>lock()</code> 返回 <code>Err</code>；可用 <code>PoisonError::into_inner</code> 取出守卫。</td><td>08</td></tr>
+<tr><td>channel（通道）</td><td>在任务/线程之间单向传递消息的管道，两端分别持有发送端与接收端；体现“靠通信来共享“。</td><td>08</td></tr>
+<tr><td><code>watch</code> / <code>mpsc</code> / <code>oneshot</code></td><td>tokio 三种通道：<code>watch</code> 广播单一可变最新值（公告牌）、<code>mpsc</code> 多生产者单消费者的流（传送带）、<code>oneshot</code> 一次性单值（电报）。</td><td>08</td></tr>
+<tr><td><code>tokio::select!</code></td><td>异步多路复用：把多个异步操作并排放着，谁先就绪就跑谁的分支。</td><td>08</td></tr>
+<tr><td><code>Arc&lt;T&gt;</code>（原子引用计数）</td><td>实现共享所有权的类型：多个 <code>Arc</code> 经 <code>clone</code> 共同拥有同一份数据，计数归零才回收；常与 <code>Mutex</code> 成对写作 <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>。</td><td>08</td></tr>
+<tr><td>share by communicating（靠通信来共享）</td><td>用通道传递消息来协调，而非共享同一块内存；与“communicate by sharing“相对。</td><td>08</td></tr>
 </tbody>
 </table>
 </div>
@@ -260,7 +268,7 @@
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="08-interior-mutability-mutex-channel.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -271,7 +279,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="07-impl-trait-static-dispatch-opaque.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="08-interior-mutability-mutex-channel.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
