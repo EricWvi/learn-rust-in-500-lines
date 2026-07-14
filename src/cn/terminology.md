@@ -69,3 +69,11 @@
 | trait object（trait 对象，`dyn Trait`） | 运行时才确定具体类型的值，能统一收纳多种类型；走动态分发。 | 07 |
 | dynamic dispatch（动态分发） | 运行时通过虚表查找方法地址再调用的方式，有一次间接开销。 | 07 |
 | vtable（虚表） | 记录某类型各方法地址的表；trait 对象靠它实现动态分发。 | 07 |
+| interior mutability（内部可变性） | 类型外部表现得像不可变（拿到 `&T` 即可操作），内部却允许修改；把安全性检查从编译期挪到运行时（如 `Mutex`、`RefCell`、`Cell`）。 | 08 |
+| `Mutex<T>` / `MutexGuard` | 互斥锁；`lock()` 返回守卫 `MutexGuard`，在守卫上可读写内部数据，守卫离开作用域自动还锁。 | 08 |
+| poisoning（中毒）/ `PoisonError` | 持锁期间线程 panic 会让 `Mutex` 标记为"中毒"，此后 `lock()` 返回 `Err`；可用 `PoisonError::into_inner` 取出守卫。 | 08 |
+| channel（通道） | 在任务/线程之间单向传递消息的管道，两端分别持有发送端与接收端；体现"靠通信来共享"。 | 08 |
+| `watch` / `mpsc` / `oneshot` | tokio 三种通道：`watch` 广播单一可变最新值（公告牌）、`mpsc` 多生产者单消费者的流（传送带）、`oneshot` 一次性单值（电报）。 | 08 |
+| `tokio::select!` | 异步多路复用：把多个异步操作并排放着，谁先就绪就跑谁的分支。 | 08 |
+| `Arc<T>`（原子引用计数） | 实现共享所有权的类型：多个 `Arc` 经 `clone` 共同拥有同一份数据，计数归零才回收；常与 `Mutex` 成对写作 `Arc<Mutex<T>>`。 | 08 |
+| share by communicating（靠通信来共享） | 用通道传递消息来协调，而非共享同一块内存；与"communicate by sharing"相对。 | 08 |

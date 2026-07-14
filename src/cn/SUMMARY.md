@@ -9,6 +9,7 @@
 - [trait、关联类型与 Result](./05-trait-associated-type-result.md)
 - [所有权、借用与生命周期](./06-ownership-borrow-lifetime.md)
 - [impl Trait 的两种位置——静态分发与不透明返回类型](./07-impl-trait-static-dispatch-opaque.md)
+- [内部可变性、Mutex 与通道——&self 凭什么能改数据](./08-interior-mutability-mutex-channel.md)
 
 
 [术语表](./terminology.md)

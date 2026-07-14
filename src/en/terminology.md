@@ -69,3 +69,11 @@ Terms introduced in each blog post, paired with the post number that first intro
 | trait object (`dyn Trait`) | A value whose concrete type is determined at runtime; can unify multiple types into a single container; uses dynamic dispatch. | 07 |
 | dynamic dispatch | The approach where a method's address is looked up at runtime via a vtable; incurs one level of indirection overhead. | 07 |
 | vtable | A table recording the method addresses for a given type; trait objects use it to achieve dynamic dispatch. | 07 |
+| interior mutability | A type that looks immutable from the outside (you operate on it through `&T`) but allows mutation internally; moves the safety check from compile time to runtime (e.g. `Mutex`, `RefCell`, `Cell`). | 08 |
+| `Mutex<T>` / `MutexGuard` | A mutual-exclusion lock; `lock()` returns a guard `MutexGuard` through which the inner data can be read/written, and the lock is released when the guard goes out of scope. | 08 |
+| poisoning / `PoisonError` | If a thread panics while holding a `Mutex`, the mutex is marked "poisoned" and subsequent `lock()` calls return `Err`; `PoisonError::into_inner` recovers the guard anyway. | 08 |
+| channel | A one-way pipe for passing messages between tasks/threads; the two ends hold a sender (`tx`) and a receiver (`rx`) respectively; embodies "share by communicating". | 08 |
+| `watch` / `mpsc` / `oneshot` | Three tokio channels: `watch` broadcasts a single latest value (a bulletin board), `mpsc` is a multi-producer single-consumer stream (a conveyor belt), `oneshot` carries one value once (a telegram). | 08 |
+| `tokio::select!` | Async multiplexing: lays several async operations side by side and runs whichever branch becomes ready first. | 08 |
+| `Arc<T>` (atomically reference-counted) | A type providing shared ownership: multiple `Arc`s jointly own the same data via `clone`, and the data is freed only when the count hits zero; often paired with `Mutex` as `Arc<Mutex<T>>`. | 08 |
+| share by communicating | Coordinating by passing messages over channels rather than by sharing memory; the counterpart to "communicate by sharing". | 08 |

@@ -9,6 +9,7 @@
 - [trait, Associated Types, and Result](./05-trait-associated-type-result.md)
 - [Ownership, Borrowing, and Lifetimes](./06-ownership-borrow-lifetime.md)
 - [impl Trait in Two Positions — Static Dispatch and Opaque Return Types](./07-impl-trait-static-dispatch-opaque.md)
+- [Interior Mutability, Mutex, and Channels](./08-interior-mutability-mutex-channel.md)
 
 
 [Terminology](./terminology.md)
